@@ -230,3 +230,10 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new LA2ACompressorProcessor();
 }
+
+// This creates the filter instance that the host calls
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
+{
+    // Убедитесь, что имя класса здесь совпадает с именем вашего процессора
+    return new LA2ACompressorAudioProcessor(); 
+}
