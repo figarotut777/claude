@@ -27,41 +27,26 @@
 ### Требования
 
 - CMake 3.22 или выше
-- JUCE Framework 7.0+ (https://github.com/juce-framework/JUCE)
+- JUCE Framework 8.0.3+ (автоматически загружается при сборке)
 - C++17 совместимый компилятор
   - Windows: Visual Studio 2019 или новее
-  - macOS: Xcode 12 или новее
+  - macOS: Xcode 13 или новее (требуется для macOS 15 Sequoia)
   - Linux: GCC 9+ или Clang 10+
 
 ### Установка JUCE
 
-#### Вариант 1: Автоматическая загрузка (рекомендуется)
+JUCE автоматически загружается через CMake FetchContent при сборке проекта. Никаких дополнительных действий не требуется.
 
-Раскомментируйте секцию FetchContent в `CMakeLists.txt`:
+#### Альтернатива: Локальная установка JUCE
 
-```cmake
-include(FetchContent)
-FetchContent_Declare(
-    JUCE
-    GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-    GIT_TAG 7.0.9
-)
-FetchContent_MakeAvailable(JUCE)
-```
-
-#### Вариант 2: Установка вручную
-
-```bash
-git clone https://github.com/juce-framework/JUCE.git
-cd JUCE
-git checkout 7.0.9
-```
-
-Затем в `CMakeLists.txt` укажите путь:
+Если вы хотите использовать локально установленную версию JUCE, раскомментируйте соответствующие строки в `CMakeLists.txt` и укажите путь к JUCE:
 
 ```cmake
+# В CMakeLists.txt раскомментируйте:
 set(JUCE_DIR "/path/to/JUCE" CACHE PATH "Path to JUCE")
 add_subdirectory(${JUCE_DIR} JUCE)
+
+# И закомментируйте секцию FetchContent
 ```
 
 ### Компиляция
@@ -86,6 +71,20 @@ cmake --build . --config Release
 # - macOS: build/LA2ACompressor_artefacts/Release/VST3/ или AU/
 # - Linux: build/LA2ACompressor_artefacts/Release/VST3/
 ```
+
+### Устранение проблем
+
+#### macOS 15 (Sequoia)
+
+При первой сборке CMake автоматически загрузит JUCE 8.0.3, который полностью совместим с macOS 15. Если у вас возникают ошибки связанные с `CGWindowListCreateImage` или `CVDisplayLink`, убедитесь что:
+
+1. Используется JUCE 8.0.3 или новее
+2. Директория `build/` очищена перед повторной сборкой: `rm -rf build && mkdir build`
+3. У вас установлен Xcode 13 или новее
+
+#### Долгая первая сборка
+
+Первая сборка может занять 5-10 минут, так как CMake загружает и компилирует JUCE. Последующие сборки будут значительно быстрее.
 
 ## Технические детали
 
