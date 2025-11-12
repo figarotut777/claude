@@ -32,16 +32,19 @@ private:
     juce::Slider peakReductionSlider;
     juce::Slider gainSlider;
     juce::ToggleButton limitModeButton;
+    juce::ToggleButton stereoLinkButton;
 
     juce::Label peakReductionLabel;
     juce::Label gainLabel;
     juce::Label limitModeLabel;
+    juce::Label stereoLinkLabel;
     juce::Label titleLabel;
 
     // Attachments для синхронизации с параметрами
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> peakReductionAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> gainAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> limitModeAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> stereoLinkAttachment;
 
     // Gain Reduction Meter
     float gainReductionMeterValue = 0.0f;

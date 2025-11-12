@@ -41,6 +41,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout LA2ACompressorProcessor::cre
         "Limit Mode",
         false));
 
+    // Stereo Link (true = linked, false = independent)
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        "stereoLink",
+        "Stereo Link",
+        true));
+
     return layout;
 }
 
@@ -109,47 +115,77 @@ bool LA2ACompressorProcessor::isBusesLayoutSupported(const BusesLayout& layouts)
     return true;
 }
 
-void LA2ACompressorProcessor::processChannel(int channel, float* channelData, int numSamples)
+float LA2ACompressorProcessor::calculateRMS(const float* channelData, int numSamples)
+{
+    float sum = 0.0f;
+    for (int i = 0; i < numSamples; ++i)
+    {
+        float sample = channelData[i];
+        sum += sample * sample;
+    }
+    return std::sqrt(sum / numSamples);
+}
+
+void LA2ACompressorProcessor::processChannel(int channel, float* channelData, int numSamples,
+                                            float peakReduction, bool limitMode, bool stereoLink)
 {
     auto& proc = channels[channel];
 
-    // Получаем параметры
-    float peakReduction = apvts.getRawParameterValue("peakReduction")->load() / 100.0f;
-    bool limitMode = apvts.getRawParameterValue("limitMode")->load() > 0.5f;
-
+    // 1. Применяем входной трансформатор и лампу к сигналу
     for (int i = 0; i < numSamples; ++i)
     {
         float sample = channelData[i];
 
-        // 1. Входной трансформатор
+        // Входной трансформатор
         sample = proc.inputTransformer.processSample(sample, 0.3f);
 
-        // 2. Входной ламповый каскад (легкое насыщение)
+        // Входной ламповый каскад (легкое насыщение)
         sample = proc.inputTube.processSample(sample, 0.3f);
 
-        // 3. Детектирование уровня для opto-cell
-        float inputLevel = std::abs(sample);
+        channelData[i] = sample;
+    }
 
-        // 4. Opto-Cell компрессия
-        float gainReduction = proc.optoCell.processSample(inputLevel, peakReduction, limitMode);
+    // 2. Детектируем уровень (RMS с сглаживанием)
+    float currentRMS = calculateRMS(channelData, numSamples);
 
-        // 5. Применяем компрессию
-        sample *= gainReduction;
+    // Сглаживаем RMS для более плавной работы компрессора
+    float rmsSmoothing = 0.3f; // Больше = медленнее
+    proc.rmsLevelState = rmsSmoothing * proc.rmsLevelState + (1.0f - rmsSmoothing) * currentRMS;
 
-        // 6. Выходной ламповый каскад (добавляет гармоники)
+    // Используем сглаженный уровень для компрессии
+    float detectionLevel = proc.rmsLevelState;
+
+    // Для Stereo Link используем максимальный уровень из обоих каналов
+    if (stereoLink)
+    {
+        detectionLevel = linkedLevel;
+    }
+
+    // 3. Применяем компрессию через Opto-Cell
+    float gainReduction = 1.0f;
+
+    for (int i = 0; i < numSamples; ++i)
+    {
+        // Opto-Cell обрабатывает детектированный уровень
+        gainReduction = proc.optoCell.processSample(detectionLevel, peakReduction, limitMode);
+
+        // Применяем компрессию к сигналу
+        float sample = channelData[i] * gainReduction;
+
+        // Выходной ламповый каскад (добавляет гармоники)
         sample = proc.outputTube.processSample(sample, 0.4f);
 
-        // 7. Выходной трансформатор
+        // Выходной трансформатор
         sample = proc.outputTransformer.processSample(sample, 0.3f);
 
         channelData[i] = sample;
+    }
 
-        // Обновляем gain reduction для GUI (только левый канал)
-        if (channel == 0)
-        {
-            float grDB = juce::Decibels::gainToDecibels(gainReduction, -60.0f);
-            currentGainReductionDB.store(grDB);
-        }
+    // Обновляем gain reduction для GUI (только левый канал)
+    if (channel == 0)
+    {
+        float grDB = juce::Decibels::gainToDecibels(gainReduction, -60.0f);
+        currentGainReductionDB.store(grDB);
     }
 }
 
@@ -165,7 +201,10 @@ void LA2ACompressorProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
-    // Make-up Gain
+    // Получаем параметры
+    float peakReduction = apvts.getRawParameterValue("peakReduction")->load() / 100.0f;
+    bool limitMode = apvts.getRawParameterValue("limitMode")->load() > 0.5f;
+    bool stereoLink = apvts.getRawParameterValue("stereoLink")->load() > 0.5f;
     float makeupGainDB = apvts.getRawParameterValue("makeupGain")->load();
     float makeupGainLinear = juce::Decibels::decibelsToGain(makeupGainDB);
 
@@ -174,12 +213,25 @@ void LA2ACompressorProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     oversampler.process(block, [&](juce::dsp::AudioBlock<float>& oversampledBlock)
     {
-        // Обрабатываем каждый канал отдельно
-        for (int channel = 0; channel < juce::jmin(2, (int)oversampledBlock.getNumChannels()); ++channel)
+        int numChannels = juce::jmin(2, (int)oversampledBlock.getNumChannels());
+        int numSamples = (int)oversampledBlock.getNumSamples();
+
+        // Для Stereo Link: вычисляем максимальный RMS из обоих каналов
+        if (stereoLink && numChannels == 2)
+        {
+            float rmsL = calculateRMS(oversampledBlock.getChannelPointer(0), numSamples);
+            float rmsR = calculateRMS(oversampledBlock.getChannelPointer(1), numSamples);
+
+            // Используем максимум (или среднее) для Stereo Link
+            linkedLevel = std::max(rmsL, rmsR);
+            // Альтернативно: linkedLevel = (rmsL + rmsR) * 0.5f;
+        }
+
+        // Обрабатываем каждый канал
+        for (int channel = 0; channel < numChannels; ++channel)
         {
             float* channelData = oversampledBlock.getChannelPointer(channel);
-            int numSamples = (int)oversampledBlock.getNumSamples();
-            processChannel(channel, channelData, numSamples);
+            processChannel(channel, channelData, numSamples, peakReduction, limitMode, stereoLink);
         }
     });
 

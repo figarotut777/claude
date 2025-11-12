@@ -59,6 +59,20 @@ LA2ACompressorEditor::LA2ACompressorEditor(LA2ACompressorProcessor& p)
     limitModeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
         audioProcessor.getValueTreeState(), "limitMode", limitModeButton);
 
+    // Stereo Link Button
+    stereoLinkButton.setButtonText("Stereo Link");
+    stereoLinkButton.setColour(juce::ToggleButton::textColourId, juce::Colours::silver);
+    stereoLinkButton.setColour(juce::ToggleButton::tickColourId, juce::Colours::green);
+    addAndMakeVisible(stereoLinkButton);
+
+    stereoLinkLabel.setText("Stereo Link", juce::dontSendNotification);
+    stereoLinkLabel.setJustificationType(juce::Justification::centred);
+    stereoLinkLabel.setColour(juce::Label::textColourId, juce::Colours::silver);
+    addAndMakeVisible(stereoLinkLabel);
+
+    stereoLinkAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.getValueTreeState(), "stereoLink", stereoLinkButton);
+
     // Запускаем таймер для обновления VU meter
     startTimerHz(30); // 30 fps
 }
@@ -165,6 +179,12 @@ void LA2ACompressorEditor::resized()
     auto limitArea = controlsArea;
     limitModeLabel.setBounds(limitArea.removeFromTop(20));
     limitModeButton.setBounds(limitArea.removeFromTop(30).reduced(10));
+
+    limitArea.removeFromTop(10); // Отступ
+
+    // Stereo Link (под Limit Mode)
+    stereoLinkLabel.setBounds(limitArea.removeFromTop(20));
+    stereoLinkButton.setBounds(limitArea.removeFromTop(30).reduced(10));
 
     // VU Meter рисуется в paint()
 }

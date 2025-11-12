@@ -68,6 +68,9 @@ private:
         TubeSaturation outputTube;
         TransformerModel inputTransformer;
         TransformerModel outputTransformer;
+
+        // RMS детектор уровня для каждого канала
+        float rmsLevelState = 0.0f;
     };
 
     std::array<ChannelProcessor, 2> channels; // L/R
@@ -75,15 +78,18 @@ private:
     // Оверсэмплинг
     OversamplingProcessor<float> oversampler;
 
-    // Детектор уровня (RMS/Peak)
-    juce::dsp::BallisticsFilter<float> levelDetectorL;
-    juce::dsp::BallisticsFilter<float> levelDetectorR;
-
     // Gain Reduction для GUI
     std::atomic<float> currentGainReductionDB { 0.0f };
 
+    // Stereo link - общий уровень для обоих каналов
+    float linkedLevel = 0.0f;
+
     // Обработка одного канала
-    void processChannel(int channel, float* channelData, int numSamples);
+    void processChannel(int channel, float* channelData, int numSamples,
+                       float peakReduction, bool limitMode, bool stereoLink);
+
+    // RMS детектор
+    float calculateRMS(const float* channelData, int numSamples);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LA2ACompressorProcessor)
 };
