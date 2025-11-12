@@ -1,6 +1,7 @@
 #pragma once
 
-#include <JuceHeader.h>
+#include <juce_core/juce_core.h>
+#include <cmath>
 
 /**
  * TubeSaturation - Моделирует ламповое насыщение (Tube/Valve saturation)

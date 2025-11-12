@@ -40,20 +40,35 @@ float OptoCell::calculateAttackTime(float inputLevel)
 
 float OptoCell::processSample(float inputLevel, float peakReduction, bool isLimitMode)
 {
-    // 1. Вычисляем целевой уровень компрессии на основе входного сигнала
-    float threshold = 1.0f - peakReduction; // peakReduction: 0 = no compression, 1 = max compression
+    // 1. Вычисляем целевой уровень компрессии
+    // Peak Reduction работает как threshold: 0 = высокий порог (мало компрессии),
+    // 1 = низкий порог (много компрессии)
+
+    // Threshold диапазон: от 0.001 (-60dB) до 1.0 (0dB)
+    // При peakReduction=0: threshold=1.0 (не срабатывает)
+    // При peakReduction=1.0: threshold=0.001 (срабатывает почти всегда)
+    float threshold = std::exp(-peakReduction * 6.9f); // e^(-6.9) ≈ 0.001
+    threshold = juce::jlimit(0.001f, 1.0f, threshold);
 
     // Определяем ratio на основе режима
-    float ratio = isLimitMode ? 100.0f : 3.0f; // Limit ≈ ∞:1, Compress ≈ 3:1
+    float ratio = isLimitMode ? 20.0f : 3.0f; // Limit ≈ 20:1, Compress ≈ 3:1
 
     // Вычисляем насколько нужно подавить сигнал
     float targetGain = 1.0f;
-    if (inputLevel > threshold)
+
+    if (inputLevel > threshold && inputLevel > 0.0001f)
     {
-        float overThreshold = inputLevel - threshold;
-        float compressed = overThreshold / ratio;
-        targetGain = (threshold + compressed) / inputLevel;
-        targetGain = juce::jlimit(0.0f, 1.0f, targetGain);
+        // Конвертируем в dB для более точного расчета компрессии
+        float inputDB = juce::Decibels::gainToDecibels(inputLevel, -96.0f);
+        float threshDB = juce::Decibels::gainToDecibels(threshold, -96.0f);
+
+        // Вычисляем подавление в dB
+        float overThresholdDB = inputDB - threshDB;
+        float gainReductionDB = overThresholdDB * (1.0f - 1.0f / ratio);
+
+        // Конвертируем обратно в линейный коэффициент
+        targetGain = juce::Decibels::decibelsToGain(-gainReductionDB);
+        targetGain = juce::jlimit(0.01f, 1.0f, targetGain); // Минимум -40dB подавления
     }
 
     // 2. Моделируем оптическую ячейку

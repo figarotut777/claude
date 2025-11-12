@@ -1,6 +1,7 @@
 #pragma once
 
-#include <JuceHeader.h>
+#include <juce_audio_basics/juce_audio_basics.h>
+#include <cmath>
 
 /**
  * OptoCell - Моделирует оптоэлектронный аттенюатор (Opto-Cell) LA-2A

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <JuceHeader.h>
+#include <juce_dsp/juce_dsp.h>
 
 /**
  * OversamplingProcessor - Обертка для 4x оверсэмплинга с использованием JUCE DSP
