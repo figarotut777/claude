@@ -71,6 +71,9 @@ private:
 
         // RMS детектор уровня для каждого канала
         float rmsLevelState = 0.0f;
+
+        // High-pass filter (sidechain)
+        juce::dsp::IIR::Filter<float> hpFilter;
     };
 
     std::array<ChannelProcessor, 2> channels; // L/R
@@ -84,12 +87,20 @@ private:
     // Stereo link - общий уровень для обоих каналов
     float linkedLevel = 0.0f;
 
+    // Auto gain compensation
+    float autoGainCompensation = 0.0f;
+    float inputRMSHistory = 0.0f;
+
     // Обработка одного канала
     void processChannel(int channel, float* channelData, int numSamples,
-                       float peakReduction, bool limitMode, bool stereoLink);
+                       float peakReduction, bool limitMode, bool stereoLink,
+                       float hpfFreq, bool power);
 
     // RMS детектор
     float calculateRMS(const float* channelData, int numSamples);
+
+    // Вычисление auto gain
+    void updateAutoGain(float inputRMS, float outputRMS);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LA2ACompressorProcessor)
 };

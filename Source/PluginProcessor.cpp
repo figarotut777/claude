@@ -24,7 +24,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout LA2ACompressorProcessor::cre
         "peakReduction",
         "Peak Reduction",
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
-        0.0f,
+        30.0f,  // Default 30% - умеренная компрессия
         "%"));
 
     // Make-up Gain (-20 to +20 dB)
@@ -39,13 +39,41 @@ juce::AudioProcessorValueTreeState::ParameterLayout LA2ACompressorProcessor::cre
     layout.add(std::make_unique<juce::AudioParameterBool>(
         "limitMode",
         "Limit Mode",
-        false));
+        false));  // Default Compress
 
     // Stereo Link (true = linked, false = independent)
     layout.add(std::make_unique<juce::AudioParameterBool>(
         "stereoLink",
         "Stereo Link",
-        true));
+        true));  // Default ON
+
+    // High Pass Filter frequency (20Hz - 500Hz)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "hpfFreq",
+        "HPF Frequency",
+        juce::NormalisableRange<float>(20.0f, 500.0f, 1.0f, 0.3f),
+        20.0f,  // Default 20Hz (почти выключен)
+        "Hz"));
+
+    // Mix (Dry/Wet) 0-100%
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "mix",
+        "Mix",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        100.0f,  // Default 100% wet
+        "%"));
+
+    // Auto Gain (automatic makeup)
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        "autoGain",
+        "Auto Gain",
+        false));  // Default OFF
+
+    // Power On/Off
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        "power",
+        "Power",
+        true));  // Default ON
 
     return layout;
 }
@@ -83,6 +111,10 @@ void LA2ACompressorProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
         channel.outputTube.prepare(sampleRate);
         channel.inputTransformer.prepare(sampleRate);
         channel.outputTransformer.prepare(sampleRate);
+
+        // HPF filter initialization
+        channel.hpFilter.prepare(spec);
+        channel.hpFilter.reset();
     }
 
     // Оверсэмплинг
@@ -117,26 +149,45 @@ float LA2ACompressorProcessor::calculateRMS(const float* channelData, int numSam
 }
 
 void LA2ACompressorProcessor::processChannel(int channel, float* channelData, int numSamples,
-                                            float peakReduction, bool limitMode, bool stereoLink)
+                                            float peakReduction, bool limitMode, bool stereoLink,
+                                            float hpfFreq, bool power)
 {
     auto& proc = channels[channel];
 
-    // 1. Применяем входной трансформатор и лампу к сигналу
+    // Если power выключен - bypass
+    if (!power)
+    {
+        return;
+    }
+
+    // 1. Применяем входной трансформатор и лампу (УМЕНЬШЕННОЕ насыщение)
     for (int i = 0; i < numSamples; ++i)
     {
         float sample = channelData[i];
 
-        // Входной трансформатор
-        sample = proc.inputTransformer.processSample(sample, 0.3f);
+        // Входной трансформатор (уменьшено с 0.3 до 0.1)
+        sample = proc.inputTransformer.processSample(sample, 0.1f);
 
-        // Входной ламповый каскад (легкое насыщение)
-        sample = proc.inputTube.processSample(sample, 0.3f);
+        // Входной ламповый каскад (уменьшено с 0.3 до 0.15)
+        sample = proc.inputTube.processSample(sample, 0.15f);
 
         channelData[i] = sample;
     }
 
-    // 2. Детектируем уровень (RMS с сглаживанием)
-    float currentRMS = calculateRMS(channelData, numSamples);
+    // 2. High-pass filter для sidechain detection
+    // Обновляем коэффициенты HPF если частота изменилась
+    *proc.hpFilter.coefficients = *juce::dsp::IIR::Coefficients<float>::makeHighPass(
+        getSampleRate() * 4.0, hpfFreq); // 4x для оверсэмплинга
+
+    // Фильтруем копию сигнала для детекции
+    float filteredData[numSamples];
+    for (int i = 0; i < numSamples; ++i)
+    {
+        filteredData[i] = proc.hpFilter.processSample(channelData[i]);
+    }
+
+    // 3. Детектируем уровень (RMS с сглаживанием) на отфильтрованном сигнале
+    float currentRMS = calculateRMS(filteredData, numSamples);
 
     // Сглаживаем RMS для более плавной работы компрессора
     float rmsSmoothing = 0.3f; // Больше = медленнее
@@ -151,7 +202,7 @@ void LA2ACompressorProcessor::processChannel(int channel, float* channelData, in
         detectionLevel = linkedLevel;
     }
 
-    // 3. Применяем компрессию через Opto-Cell
+    // 4. Применяем компрессию через Opto-Cell
     float gainReduction = 1.0f;
 
     for (int i = 0; i < numSamples; ++i)
@@ -159,14 +210,14 @@ void LA2ACompressorProcessor::processChannel(int channel, float* channelData, in
         // Opto-Cell обрабатывает детектированный уровень
         gainReduction = proc.optoCell.processSample(detectionLevel, peakReduction, limitMode);
 
-        // Применяем компрессию к сигналу
+        // Применяем компрессию к сигналу (НЕ к отфильтрованному!)
         float sample = channelData[i] * gainReduction;
 
-        // Выходной ламповый каскад (добавляет гармоники)
-        sample = proc.outputTube.processSample(sample, 0.4f);
+        // Выходной ламповый каскад (уменьшено с 0.4 до 0.2)
+        sample = proc.outputTube.processSample(sample, 0.2f);
 
-        // Выходной трансформатор
-        sample = proc.outputTransformer.processSample(sample, 0.3f);
+        // Выходной трансформатор (уменьшено с 0.3 до 0.1)
+        sample = proc.outputTransformer.processSample(sample, 0.1f);
 
         channelData[i] = sample;
     }
@@ -176,6 +227,23 @@ void LA2ACompressorProcessor::processChannel(int channel, float* channelData, in
     {
         float grDB = juce::Decibels::gainToDecibels(gainReduction, -60.0f);
         currentGainReductionDB.store(grDB);
+    }
+}
+
+void LA2ACompressorProcessor::updateAutoGain(float inputRMS, float outputRMS)
+{
+    // Простое вычисление auto gain: компенсируем разницу между входом и выходом
+    if (inputRMS > 0.001f && outputRMS > 0.001f)
+    {
+        float gainDiff = inputRMS / outputRMS;
+        float gainDiffDB = juce::Decibels::gainToDecibels(gainDiff);
+
+        // Сглаживание
+        float smoothing = 0.95f;
+        autoGainCompensation = smoothing * autoGainCompensation + (1.0f - smoothing) * gainDiffDB;
+
+        // Ограничиваем до разумных пределов
+        autoGainCompensation = juce::jlimit(-20.0f, 20.0f, autoGainCompensation);
     }
 }
 
@@ -195,8 +263,32 @@ void LA2ACompressorProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     float peakReduction = apvts.getRawParameterValue("peakReduction")->load() / 100.0f;
     bool limitMode = apvts.getRawParameterValue("limitMode")->load() > 0.5f;
     bool stereoLink = apvts.getRawParameterValue("stereoLink")->load() > 0.5f;
+    float hpfFreq = apvts.getRawParameterValue("hpfFreq")->load();
+    float mix = apvts.getRawParameterValue("mix")->load() / 100.0f;
+    bool autoGain = apvts.getRawParameterValue("autoGain")->load() > 0.5f;
+    bool power = apvts.getRawParameterValue("power")->load() > 0.5f;
     float makeupGainDB = apvts.getRawParameterValue("makeupGain")->load();
-    float makeupGainLinear = juce::Decibels::decibelsToGain(makeupGainDB);
+
+    // Если power выключен - bypass
+    if (!power)
+    {
+        return;
+    }
+
+    // Сохраняем dry сигнал для mix
+    juce::AudioBuffer<float> dryBuffer;
+    dryBuffer.makeCopyOf(buffer);
+
+    // Вычисляем input RMS для auto gain
+    float inputRMS = 0.0f;
+    if (autoGain)
+    {
+        for (int ch = 0; ch < totalNumInputChannels; ++ch)
+        {
+            inputRMS += calculateRMS(buffer.getReadPointer(ch), buffer.getNumSamples());
+        }
+        inputRMS /= totalNumInputChannels;
+    }
 
     // Оверсэмплинг + обработка
     juce::dsp::AudioBlock<float> block(buffer);
@@ -212,28 +304,51 @@ void LA2ACompressorProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             float rmsL = calculateRMS(oversampledBlock.getChannelPointer(0), numSamples);
             float rmsR = calculateRMS(oversampledBlock.getChannelPointer(1), numSamples);
 
-            // Используем максимум (или среднее) для Stereo Link
+            // Используем максимум для Stereo Link
             linkedLevel = std::max(rmsL, rmsR);
-            // Альтернативно: linkedLevel = (rmsL + rmsR) * 0.5f;
         }
 
         // Обрабатываем каждый канал
         for (int channel = 0; channel < numChannels; ++channel)
         {
             float* channelData = oversampledBlock.getChannelPointer(channel);
-            processChannel(channel, channelData, numSamples, peakReduction, limitMode, stereoLink);
+            processChannel(channel, channelData, numSamples,
+                         peakReduction, limitMode, stereoLink, hpfFreq, true);
         }
     });
 
-    // Применяем Make-up Gain после оверсэмплинга
+    // Вычисляем output RMS для auto gain
+    float outputRMS = 0.0f;
+    if (autoGain)
+    {
+        for (int ch = 0; ch < totalNumInputChannels; ++ch)
+        {
+            outputRMS += calculateRMS(buffer.getReadPointer(ch), buffer.getNumSamples());
+        }
+        outputRMS /= totalNumInputChannels;
+
+        updateAutoGain(inputRMS, outputRMS);
+        makeupGainDB += autoGainCompensation;
+    }
+
+    // Применяем Make-up Gain
+    float makeupGainLinear = juce::Decibels::decibelsToGain(makeupGainDB);
+
+    // Mix dry/wet и применяем gain
     for (int channel = 0; channel < totalNumInputChannels; ++channel)
     {
-        auto* channelData = buffer.getWritePointer(channel);
+        auto* wetData = buffer.getWritePointer(channel);
+        const auto* dryData = dryBuffer.getReadPointer(channel);
+
         for (int i = 0; i < buffer.getNumSamples(); ++i)
         {
-            channelData[i] *= makeupGainLinear;
+            // Mix
+            float wetSample = wetData[i] * makeupGainLinear;
+            float drySample = dryData[i];
+            float mixed = wetSample * mix + drySample * (1.0f - mix);
+
             // Мягкое ограничение на выходе
-            channelData[i] = juce::jlimit(-1.0f, 1.0f, channelData[i]);
+            wetData[i] = juce::jlimit(-1.0f, 1.0f, mixed);
         }
     }
 }
