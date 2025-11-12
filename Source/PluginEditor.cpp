@@ -6,7 +6,12 @@ LA2ACompressorEditor::LA2ACompressorEditor(LA2ACompressorProcessor& p)
     : AudioProcessorEditor(&p), audioProcessor(p)
 {
     // Размер окна в стиле LA-2A
-    setSize(500, 400);
+    setSize(600, 500);
+
+    // Делаем окно изменяемого размера с ограничениями
+    setResizable(true, true);
+    setResizeLimits(500, 400, 1200, 1000); // min width, min height, max width, max height
+    getConstrainer()->setFixedAspectRatio(1.2f); // Сохраняем пропорции 6:5
 
     // Title Label
     titleLabel.setText("LA-2A Optical Compressor", juce::dontSendNotification);
@@ -73,6 +78,64 @@ LA2ACompressorEditor::LA2ACompressorEditor(LA2ACompressorProcessor& p)
     stereoLinkAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
         audioProcessor.getValueTreeState(), "stereoLink", stereoLinkButton);
 
+    // HPF Frequency Slider
+    hpfFreqSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    hpfFreqSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+    hpfFreqSlider.setColour(juce::Slider::thumbColourId, juce::Colours::silver);
+    hpfFreqSlider.setColour(juce::Slider::rotarySliderFillColourId, juce::Colours::orange);
+    addAndMakeVisible(hpfFreqSlider);
+
+    hpfFreqLabel.setText("HPF", juce::dontSendNotification);
+    hpfFreqLabel.setJustificationType(juce::Justification::centred);
+    hpfFreqLabel.setColour(juce::Label::textColourId, juce::Colours::silver);
+    addAndMakeVisible(hpfFreqLabel);
+
+    hpfFreqAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.getValueTreeState(), "hpfFreq", hpfFreqSlider);
+
+    // Mix Slider
+    mixSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    mixSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+    mixSlider.setColour(juce::Slider::thumbColourId, juce::Colours::silver);
+    mixSlider.setColour(juce::Slider::rotarySliderFillColourId, juce::Colours::cyan);
+    addAndMakeVisible(mixSlider);
+
+    mixLabel.setText("Mix", juce::dontSendNotification);
+    mixLabel.setJustificationType(juce::Justification::centred);
+    mixLabel.setColour(juce::Label::textColourId, juce::Colours::silver);
+    addAndMakeVisible(mixLabel);
+
+    mixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.getValueTreeState(), "mix", mixSlider);
+
+    // Auto Gain Button
+    autoGainButton.setButtonText("Auto Gain");
+    autoGainButton.setColour(juce::ToggleButton::textColourId, juce::Colours::silver);
+    autoGainButton.setColour(juce::ToggleButton::tickColourId, juce::Colours::yellow);
+    addAndMakeVisible(autoGainButton);
+
+    autoGainLabel.setText("Auto Gain", juce::dontSendNotification);
+    autoGainLabel.setJustificationType(juce::Justification::centred);
+    autoGainLabel.setColour(juce::Label::textColourId, juce::Colours::silver);
+    addAndMakeVisible(autoGainLabel);
+
+    autoGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.getValueTreeState(), "autoGain", autoGainButton);
+
+    // Power Button
+    powerButton.setButtonText("POWER");
+    powerButton.setColour(juce::ToggleButton::textColourId, juce::Colours::silver);
+    powerButton.setColour(juce::ToggleButton::tickColourId, juce::Colours::lime);
+    addAndMakeVisible(powerButton);
+
+    powerLabel.setText("Power", juce::dontSendNotification);
+    powerLabel.setJustificationType(juce::Justification::centred);
+    powerLabel.setColour(juce::Label::textColourId, juce::Colours::silver);
+    addAndMakeVisible(powerLabel);
+
+    powerAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.getValueTreeState(), "power", powerButton);
+
     // Запускаем таймер для обновления VU meter
     startTimerHz(30); // 30 fps
 }
@@ -96,8 +159,14 @@ void LA2ACompressorEditor::paint(juce::Graphics& g)
     g.setColour(juce::Colours::silver);
     g.drawRoundedRectangle(panel.toFloat(), 10.0f, 2.0f);
 
-    // VU Meter для Gain Reduction
-    juce::Rectangle<int> meterBounds(getWidth() / 2 - 75, 280, 150, 80);
+    // VU Meter для Gain Reduction (в центре между GAIN и PEAK REDUCTION)
+    // Позиция соответствует centerSection из resized()
+    int centerX = 150 + 10; // leftSection + отступ
+    int centerY = 50 + 10; // title + отступ
+    int centerWidth = 200;
+    int centerHeight = 200;
+
+    juce::Rectangle<int> meterBounds(centerX + 25, centerY + 40, 150, 120);
     drawVUMeter(g, meterBounds);
 }
 
@@ -156,37 +225,75 @@ void LA2ACompressorEditor::resized()
     // Title
     titleLabel.setBounds(bounds.removeFromTop(50));
 
+    bounds.removeFromTop(10); // Отступ
+
+    // Основной ряд (LA-2A стиль): Limit/Compress - GAIN - VU Meter - PEAK REDUCTION - POWER
+    auto mainRow = bounds.removeFromTop(200);
+
+    // Левая часть: Limit/Compress toggle + GAIN knob
+    auto leftSection = mainRow.removeFromLeft(150);
+
+    // Limit/Compress toggle слева от GAIN
+    limitModeLabel.setBounds(leftSection.removeFromTop(20));
+    limitModeButton.setBounds(leftSection.removeFromTop(40).reduced(15, 5));
+
+    leftSection.removeFromTop(10); // Отступ
+
+    // GAIN knob
+    gainLabel.setBounds(leftSection.removeFromTop(20));
+    gainSlider.setBounds(leftSection);
+
+    mainRow.removeFromLeft(10); // Отступ
+
+    // Центр: VU Meter (рисуется в paint, резервируем место)
+    auto centerSection = mainRow.removeFromLeft(200);
+    // VU Meter будет отрисован в центре через paint()
+
+    mainRow.removeFromLeft(10); // Отступ
+
+    // Правая часть: PEAK REDUCTION knob + POWER toggle
+    auto rightSection = mainRow;
+
+    // PEAK REDUCTION knob
+    peakReductionLabel.setBounds(rightSection.removeFromTop(20));
+    peakReductionSlider.setBounds(rightSection.removeFromBottom(130));
+
+    rightSection.removeFromTop(10); // Отступ
+
+    // POWER toggle справа от PEAK REDUCTION
+    powerLabel.setBounds(rightSection.removeFromTop(20));
+    powerButton.setBounds(rightSection.removeFromTop(40).reduced(15, 5));
+
     bounds.removeFromTop(20); // Отступ
 
-    // Верхний ряд с контролами
-    auto controlsArea = bounds.removeFromTop(150);
+    // Нижний ряд: HPF, Mix, Auto Gain, Stereo Link
+    auto bottomRow = bounds.removeFromTop(120);
 
-    // Peak Reduction (левая большая ручка)
-    auto peakReductionArea = controlsArea.removeFromLeft(150);
-    peakReductionLabel.setBounds(peakReductionArea.removeFromTop(20));
-    peakReductionSlider.setBounds(peakReductionArea);
+    // HPF
+    auto hpfArea = bottomRow.removeFromLeft(120);
+    hpfFreqLabel.setBounds(hpfArea.removeFromTop(20));
+    hpfFreqSlider.setBounds(hpfArea);
 
-    controlsArea.removeFromLeft(20); // Отступ
+    bottomRow.removeFromLeft(10); // Отступ
 
-    // Gain (средняя ручка)
-    auto gainArea = controlsArea.removeFromLeft(150);
-    gainLabel.setBounds(gainArea.removeFromTop(20));
-    gainSlider.setBounds(gainArea);
+    // Mix
+    auto mixArea = bottomRow.removeFromLeft(120);
+    mixLabel.setBounds(mixArea.removeFromTop(20));
+    mixSlider.setBounds(mixArea);
 
-    controlsArea.removeFromLeft(20); // Отступ
+    bottomRow.removeFromLeft(10); // Отступ
 
-    // Limit Mode (правый переключатель)
-    auto limitArea = controlsArea;
-    limitModeLabel.setBounds(limitArea.removeFromTop(20));
-    limitModeButton.setBounds(limitArea.removeFromTop(30).reduced(10));
+    // Auto Gain toggle
+    auto autoGainArea = bottomRow.removeFromLeft(120);
+    autoGainLabel.setBounds(autoGainArea.removeFromTop(20));
+    autoGainButton.setBounds(autoGainArea.removeFromTop(40).reduced(15, 5));
 
-    limitArea.removeFromTop(10); // Отступ
+    bottomRow.removeFromLeft(10); // Отступ
 
-    // Stereo Link (под Limit Mode)
-    stereoLinkLabel.setBounds(limitArea.removeFromTop(20));
-    stereoLinkButton.setBounds(limitArea.removeFromTop(30).reduced(10));
-
-    // VU Meter рисуется в paint()
+    // Stereo Link toggle
+    auto stereoLinkArea = bottomRow;
+    stereoLinkLabel.setBounds(stereoLinkArea.removeFromTop(20));
+    stereoLinkButton.setBounds(stereoLinkArea.removeFromTop(40).reduced(15, 5));
 }
 
 void LA2ACompressorEditor::timerCallback()
@@ -194,9 +301,23 @@ void LA2ACompressorEditor::timerCallback()
     // Обновляем значение gain reduction для VU meter
     float currentGR = audioProcessor.getCurrentGainReductionDB();
 
-    // Сглаживание для плавного отображения
-    float smoothing = 0.8f;
-    gainReductionMeterValue = smoothing * gainReductionMeterValue + (1.0f - smoothing) * currentGR;
+    // VU meter ballistics: быстрый attack, медленный release (как настоящий VU-метр)
+    // Attack: ~300ms, Release: ~300ms для VU, но для GR meter делаем чуть быстрее
+    float attackCoeff = 0.85f;  // Быстрая реакция на увеличение компрессии
+    float releaseCoeff = 0.92f; // Медленный возврат (инерция)
+
+    // Если компрессия усиливается (GR становится более отрицательным), используем attack
+    // Если компрессия ослабевает (GR идет к 0), используем release
+    if (currentGR < gainReductionMeterValue)
+    {
+        // Attack - быстрое движение вниз (больше компрессии)
+        gainReductionMeterValue = attackCoeff * gainReductionMeterValue + (1.0f - attackCoeff) * currentGR;
+    }
+    else
+    {
+        // Release - медленное движение вверх (меньше компрессии) с инерцией
+        gainReductionMeterValue = releaseCoeff * gainReductionMeterValue + (1.0f - releaseCoeff) * currentGR;
+    }
 
     repaint();
 }

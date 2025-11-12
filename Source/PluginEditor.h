@@ -28,16 +28,27 @@ private:
 
     LA2ACompressorProcessor& audioProcessor;
 
-    // Параметры
+    // Основные параметры
     juce::Slider peakReductionSlider;
     juce::Slider gainSlider;
     juce::ToggleButton limitModeButton;
     juce::ToggleButton stereoLinkButton;
 
+    // Новые параметры
+    juce::Slider hpfFreqSlider;
+    juce::Slider mixSlider;
+    juce::ToggleButton autoGainButton;
+    juce::ToggleButton powerButton;
+
+    // Labels
     juce::Label peakReductionLabel;
     juce::Label gainLabel;
     juce::Label limitModeLabel;
     juce::Label stereoLinkLabel;
+    juce::Label hpfFreqLabel;
+    juce::Label mixLabel;
+    juce::Label autoGainLabel;
+    juce::Label powerLabel;
     juce::Label titleLabel;
 
     // Attachments для синхронизации с параметрами
@@ -45,6 +56,10 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> gainAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> limitModeAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> stereoLinkAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> hpfFreqAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> mixAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> autoGainAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> powerAttachment;
 
     // Gain Reduction Meter
     float gainReductionMeterValue = 0.0f;
