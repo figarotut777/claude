@@ -87,16 +87,6 @@ void LA2ACompressorProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
 
     // Оверсэмплинг
     oversampler.prepare(spec);
-
-    // Детекторы уровня
-    levelDetectorL.prepare(spec);
-    levelDetectorR.prepare(spec);
-    levelDetectorL.setLevelCalculationType(juce::dsp::BallisticsFilterLevelCalculationType::RMS);
-    levelDetectorR.setLevelCalculationType(juce::dsp::BallisticsFilterLevelCalculationType::RMS);
-    levelDetectorL.setAttackTime(0.001f);  // 1ms
-    levelDetectorL.setReleaseTime(0.1f);   // 100ms
-    levelDetectorR.setAttackTime(0.001f);
-    levelDetectorR.setReleaseTime(0.1f);
 }
 
 void LA2ACompressorProcessor::releaseResources()
