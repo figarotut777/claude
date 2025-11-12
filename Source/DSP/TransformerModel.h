@@ -1,6 +1,7 @@
 #pragma once
 
-#include <JuceHeader.h>
+#include <juce_dsp/juce_dsp.h>
+#include <cmath>
 
 /**
  * TransformerModel - Моделирует входной и выходной трансформаторы
