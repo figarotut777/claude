@@ -1,0 +1,29 @@
+# Web Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# HTTP клиент для запросов к маркетплейсам
+httpx==0.26.0
+
+# HTML парсинг (для fallback, если нет API)
+selectolax==0.3.21
+beautifulsoup4==4.12.3
+lxml==5.1.0
+
+# Fuzzy text matching
+python-Levenshtein==0.23.0
+rapidfuzz==3.6.1
+
+# Работа с данными
+python-dotenv==1.0.0
+
+# Для опционального сравнения изображений (будущая фича)
+# Pillow==10.2.0
+# imagehash==4.3.1
+
+# Тестирование (опционально)
+pytest==7.4.4
+pytest-asyncio==0.23.3
+httpx-mock==0.1.0

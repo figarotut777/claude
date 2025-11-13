@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # FastAPI приложение
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: price-comparison-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=false
+      - ENABLE_YANDEX_MARKET=true
+      - ENABLE_WILDBERRIES=true
+      - ENABLE_OZON=true
+    env_file:
+      - .env
+    volumes:
+      - ./app:/app/app
+    depends_on:
+      - redis
+      - postgres
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+  # Redis для кеширования (будущая функциональность)
+  redis:
+    image: redis:7-alpine
+    container_name: price-comparison-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # PostgreSQL для хранения данных (будущая функциональность)
+  postgres:
+    image: postgres:15-alpine
+    container_name: price-comparison-postgres
+    environment:
+      - POSTGRES_DB=price_comparison
+      - POSTGRES_USER=price_user
+      - POSTGRES_PASSWORD=price_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  postgres_data:
