@@ -1,0 +1,86 @@
+// Prisma Schema for Billiards Booking System
+// Supports overnight operations (12:00 PM - 04:00 AM next day)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Table types (Russian Billiards, American Pool, etc.)
+model TableType {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique // 'russian', 'american_pool'
+  displayName String   @map("display_name") // 'Русский бильярд', 'Американский пул'
+  sortOrder   Int      @default(0) @map("sort_order")
+  color       String   @default("#10B981") // Color for UI
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tables      Table[]
+
+  @@map("table_types")
+}
+
+// Individual tables
+model Table {
+  id        Int       @id @default(autoincrement())
+  typeId    Int       @map("type_id")
+  number    Int       // Table number within its type (1, 2, 3...)
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  type      TableType @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  bookings  Booking[]
+
+  @@unique([typeId, number])
+  @@map("tables")
+}
+
+// Bookings with business date logic
+model Booking {
+  id              Int      @id @default(autoincrement())
+  tableId         Int      @map("table_id")
+
+  // Business date approach - the "working day" date
+  // If actual time is 02:00 AM Nov 16, businessDate is Nov 15
+  businessDate    DateTime @map("business_date") @db.Date
+
+  // Full timestamps for precise time tracking
+  startDatetime   DateTime @map("start_datetime")
+  endDatetime     DateTime @map("end_datetime")
+
+  // Customer info
+  customerName    String?  @map("customer_name")
+  customerPhone   String?  @map("customer_phone")
+
+  // Booking status
+  status          BookingStatus @default(ACTIVE)
+
+  // Metadata
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  table           Table    @relation(fields: [tableId], references: [id], onDelete: Cascade)
+
+  @@index([businessDate, tableId])
+  @@index([startDatetime, endDatetime])
+  @@map("bookings")
+}
+
+enum BookingStatus {
+  ACTIVE
+  CANCELLED
+  COMPLETED
+}
+
+// Club settings
+model Setting {
+  key       String   @id
+  value     String   // JSON string
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
