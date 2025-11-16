@@ -1,0 +1,199 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: price-scanner-db
+    environment:
+      POSTGRES_DB: price_scanner
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - price-scanner-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: price-scanner-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - price-scanner-network
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.api
+    container_name: price-scanner-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/price_scanner
+      - REDIS_URL=redis://redis:6379
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - price-scanner-network
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Image Search Service
+  image-search:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.service
+    container_name: price-scanner-image-search
+    ports:
+      - "8001:8001"
+    environment:
+      - GOOGLE_VISION_API_KEY=${GOOGLE_VISION_API_KEY}
+      - REDIS_URL=redis://redis:6379
+      - SERVICE_PORT=8001
+      - SERVICE_NAME=image-search
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+    networks:
+      - price-scanner-network
+    command: uvicorn services.image_search.main:app --host 0.0.0.0 --port 8001 --reload
+
+  # Text Search Service
+  text-search:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.service
+    container_name: price-scanner-text-search
+    ports:
+      - "8002:8002"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - SERVICE_PORT=8002
+      - SERVICE_NAME=text-search
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+    networks:
+      - price-scanner-network
+    command: uvicorn services.text_search.main:app --host 0.0.0.0 --port 8002 --reload
+
+  # URL Parser Service
+  url-parser:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.service
+    container_name: price-scanner-url-parser
+    ports:
+      - "8003:8003"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - SERVICE_PORT=8003
+      - SERVICE_NAME=url-parser
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+    networks:
+      - price-scanner-network
+    command: uvicorn services.url_parser.main:app --host 0.0.0.0 --port 8003 --reload
+
+  # Marketplace Connectors Service
+  marketplace-connectors:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.service
+    container_name: price-scanner-marketplace
+    ports:
+      - "8004:8004"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - AMAZON_API_KEY=${AMAZON_API_KEY}
+      - EBAY_API_KEY=${EBAY_API_KEY}
+      - ALIEXPRESS_API_KEY=${ALIEXPRESS_API_KEY}
+      - SERVICE_PORT=8004
+      - SERVICE_NAME=marketplace-connectors
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+    networks:
+      - price-scanner-network
+    command: uvicorn services.marketplace_connectors.main:app --host 0.0.0.0 --port 8004 --reload
+
+  # Product Normalizer Service
+  normalizer:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.service
+    container_name: price-scanner-normalizer
+    ports:
+      - "8005:8005"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/price_scanner
+      - SERVICE_PORT=8005
+      - SERVICE_NAME=normalizer
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - price-scanner-network
+    command: uvicorn services.normalizer.main:app --host 0.0.0.0 --port 8005 --reload
+
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend
+    container_name: price-scanner-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - api-gateway
+    networks:
+      - price-scanner-network
+    command: npm run dev
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  price-scanner-network:
+    driver: bridge
