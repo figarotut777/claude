@@ -1,216 +1,276 @@
-# LA-2A Optical Compressor Plugin
+# 🎯 Wildberries Slot Monitor
 
-Высококачественный плагин оптического компрессора, смоделированный по образцу легендарного Teletronix LA-2A. Этот плагин точно воспроизводит характерное звучание оригинала благодаря детальному моделированию оптоэлектронной цепи, лампового каскада и трансформаторов.
+Professional-grade web application for monitoring and auto-booking delivery slots at Wildberries warehouses via their API.
 
-## Основные возможности
+## 🌟 Features
 
-### Аутентичное моделирование LA-2A
+- **Real-time Monitoring**: Continuously checks multiple warehouses for available slots
+- **Smart Filtering**: Configure acceptable coefficient thresholds and date ranges
+- **Auto-Booking**: Automatically books slots matching your criteria
+- **Telegram Notifications**: Get instant alerts when slots are found or booked
+- **Professional Dashboard**: Clean Streamlit UI with real-time activity logs
+- **Robust Error Handling**: Gracefully handles API errors, rate limits, and network issues
+- **Rate Limiting Protection**: Random delays between requests to avoid API bans
 
-- **Оптическая ячейка (Opto-Cell)**: Точное моделирование T4B оптоэлектронного аттенюатора с нелинейным временем отклика
-- **Многоступенчатый Release**: Характерная двухфазная кривая восстановления (быстрый начальный сброс + медленный хвост)
-- **Нелинейный Attack**: Время атаки зависит от амплитуды входного сигнала (1-10ms)
-- **Ламповое насыщение**: Моделирование входного и выходного ламповых каскадов (12AX7/ECC83)
-- **Трансформаторы**: Генерация 2-й и 3-й гармоник с гистерезисом магнитного сердечника
-- **4x оверсэмплинг**: Минимизация алиасинга от нелинейных процессов
+## 📋 Prerequisites
 
-### Управление
+- Python 3.11 or higher
+- Wildberries Supplier API token
+- (Optional) Telegram Bot for notifications
 
-- **Peak Reduction** (0-100%): Контролирует пороговый уровень и степень компрессии
-- **Gain** (-20 до +20 dB): Make-up gain для компенсации снижения уровня
-- **Compress/Limit**: Переключатель режимов
-  - Compress: Мягкая компрессия с ratio ~3:1
-  - Limit: Жесткое ограничение с ratio ~100:1
-- **VU Meter**: Визуальное отображение Gain Reduction
+## 🚀 Quick Start
 
-## Сборка проекта
-
-### Требования
-
-- CMake 3.22 или выше
-- JUCE Framework 8.0.3+ (автоматически загружается при сборке)
-- C++17 совместимый компилятор
-  - Windows: Visual Studio 2019 или новее
-  - macOS: Xcode 13 или новее (требуется для macOS 15 Sequoia)
-  - Linux: GCC 9+ или Clang 10+
-
-### Установка JUCE
-
-JUCE автоматически загружается через CMake FetchContent при сборке проекта. Никаких дополнительных действий не требуется.
-
-#### Альтернатива: Локальная установка JUCE
-
-Если вы хотите использовать локально установленную версию JUCE, раскомментируйте соответствующие строки в `CMakeLists.txt` и укажите путь к JUCE:
-
-```cmake
-# В CMakeLists.txt раскомментируйте:
-set(JUCE_DIR "/path/to/JUCE" CACHE PATH "Path to JUCE")
-add_subdirectory(${JUCE_DIR} JUCE)
-
-# И закомментируйте секцию FetchContent
-```
-
-### Компиляция
+### 1. Installation
 
 ```bash
-# Клонируйте репозиторий
-git clone <repository-url>
-cd claude
+# Clone or download this repository
+cd wildberries-slot-monitor
 
-# Создайте директорию для сборки
-mkdir build
-cd build
-
-# Конфигурация CMake
-cmake ..
-
-# Компиляция
-cmake --build . --config Release
-
-# Плагин будет создан в:
-# - Windows: build/LA2ACompressor_artefacts/Release/VST3/
-# - macOS: build/LA2ACompressor_artefacts/Release/VST3/ или AU/
-# - Linux: build/LA2ACompressor_artefacts/Release/VST3/
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-### Устранение проблем
+### 2. Get Your API Credentials
 
-#### macOS 15 (Sequoia)
+#### Wildberries API Token
+1. Log in to your Wildberries Supplier account
+2. Navigate to Settings → API
+3. Generate a new API token with "Supplies" permissions
+4. Copy the token (keep it secure!)
 
-При первой сборке CMake автоматически загрузит JUCE 8.0.3, который полностью совместим с macOS 15. Если у вас возникают ошибки связанные с `CGWindowListCreateImage` или `CVDisplayLink`, убедитесь что:
+#### Telegram Bot (Optional)
+1. Open Telegram and search for `@BotFather`
+2. Send `/newbot` and follow the instructions
+3. Copy the bot token
+4. Search for `@userinfobot` and send `/start`
+5. Copy your chat ID
 
-1. Используется JUCE 8.0.3 или новее
-2. Директория `build/` очищена перед повторной сборкой: `rm -rf build && mkdir build`
-3. У вас установлен Xcode 13 или новее
+### 3. Run the Application
 
-#### Долгая первая сборка
-
-Первая сборка может занять 5-10 минут, так как CMake загружает и компилирует JUCE. Последующие сборки будут значительно быстрее.
-
-## Технические детали
-
-### Сигнальная цепь
-
-```
-Input Signal
-    ↓
-Input Transformer (harmonic generation, frequency shaping)
-    ↓
-Input Tube Stage (12AX7, soft saturation)
-    ↓
-Level Detection (RMS with fast attack/slow release)
-    ↓
-Opto-Cell Processing (T4B cell emulation)
-    ↓
-Gain Reduction Application
-    ↓
-Output Tube Stage (harmonic enhancement)
-    ↓
-Output Transformer (final coloration)
-    ↓
-Make-up Gain
-    ↓
-Output Signal
+```bash
+streamlit run main.py
 ```
 
-### Оптическая ячейка (OptoCell)
+The application will open in your browser at `http://localhost:8501`
 
-Ключевой элемент LA-2A, моделирует взаимодействие светодиода и фоторезистора:
+## 📖 Usage Guide
 
-- **Нелинейное время Attack**: 1-10ms в зависимости от входного уровня
-- **Двухфазный Release**:
-  - Быстрая фаза: ~60ms (начальный сброс)
-  - Медленная фаза: ~2s (долгий хвост)
-  - Blend: 70% быстрой + 30% медленной фазы
-- **Логарифмическая характеристика**: Имитация нелинейности фотодиода
+### Step 1: Configure API Access
 
-### Ламповое насыщение
+1. **WB API Token**: Paste your Wildberries API token
+2. Click "Test WB Connection" to verify and load warehouses
+3. **Telegram** (optional): Enter bot token and chat ID
+4. Click "Test Telegram" to verify notifications
 
-Моделирование триода (12AX7/ECC83):
+### Step 2: Create a Monitoring Task
 
-- Асимметричное ограничение для генерации четных гармоник
-- Tanh-based передаточная характеристика
-- Кубическая нелинейность для 3-й гармоники
-- DC blocker для удаления постоянной составляющей
+1. **Select Warehouses**: Choose one or more warehouses to monitor
+2. **Date Range**: Set start and end dates for slot search
+3. **Max Coefficient**: Set the maximum acceptable coefficient (e.g., 5.0 for ≤x5)
+4. **Shipment Type**: Choose "box" or "monopallet"
+5. **Mode**:
+   - 🔔 **Notify Only**: Sends Telegram alert when slot found
+   - 🤖 **Auto-Book**: Automatically books the slot
 
-### Трансформаторы
+6. Click "Create Task"
 
-Входной и выходной трансформаторы добавляют характерную окраску:
+### Step 3: Start Monitoring
 
-- Насыщение магнитного сердечника (генерация гармоник)
-- Гистерезис для реалистичности
-- Low-shelf boost на ~100Hz (+1dB)
-- High-frequency roll-off на ~15kHz (-3dB)
+1. Click "▶️ Start Monitoring"
+2. The engine will continuously check for slots every 30-60 seconds
+3. Watch the Activity Log for real-time updates
 
-### Оверсэмплинг
-
-4x оверсэмплинг (2 stages) с использованием JUCE DSP:
-
-- Half-band polyphase IIR фильтры
-- Минимизация алиасинга от нелинейных процессов
-- Автоматическая компенсация латентности
-
-## Использование
-
-### Основные приемы
-
-1. **Вокальная компрессия**
-   - Peak Reduction: 30-50%
-   - Gain: +2 до +6 dB
-   - Mode: Compress
-
-2. **Бас и барабаны**
-   - Peak Reduction: 40-70%
-   - Gain: +4 до +8 dB
-   - Mode: Compress или Limit
-
-3. **Мастеринг (glue compression)**
-   - Peak Reduction: 10-25%
-   - Gain: 0 до +3 dB
-   - Mode: Compress
-
-4. **Limiting**
-   - Peak Reduction: 60-90%
-   - Gain: настройте по вкусу
-   - Mode: Limit
-
-### Советы по использованию
-
-- LA-2A имеет медленный attack, поэтому пропускает транзиенты - отлично для сохранения панча
-- Длинный release создает эффект "дыхания", особенно заметный на басу и вокале
-- Используйте умеренные значения Peak Reduction для тонкого контроля динамики
-- В режиме Limit плагин становится агрессивным ограничителем
-- Благодаря гармоническим искажениям, звук становится более насыщенным и "теплым"
-
-## Структура проекта
+## 📁 Project Structure
 
 ```
-claude/
-├── CMakeLists.txt              # Конфигурация сборки
-├── README.md                   # Документация
-└── Source/
-    ├── PluginProcessor.h       # Главный процессор
-    ├── PluginProcessor.cpp
-    ├── PluginEditor.h          # GUI
-    ├── PluginEditor.cpp
-    └── DSP/
-        ├── OptoCell.h          # Моделирование оптической ячейки
-        ├── OptoCell.cpp
-        ├── TubeSaturation.h    # Ламповое насыщение
-        ├── TubeSaturation.cpp
-        ├── TransformerModel.h  # Трансформаторы
-        ├── TransformerModel.cpp
-        ├── Oversampling.h      # 4x оверсэмплинг
-        └── Oversampling.cpp
+wildberries-slot-monitor/
+├── main.py              # Streamlit UI and main application
+├── wb_api.py            # Wildberries API client
+├── utils.py             # Telegram notifications and logging
+├── models.py            # Pydantic data models
+├── requirements.txt     # Python dependencies
+└── README.md           # This file
 ```
 
-## Лицензия
+## 🏗️ Architecture
 
-Этот проект создан в образовательных целях. Используйте его на свой страх и риск.
+### Components
 
-## Благодарности
+1. **WildberriesAPI** (`wb_api.py`)
+   - Async HTTP client using `httpx`
+   - Handles authentication, rate limiting, and errors
+   - Methods: `get_warehouses()`, `get_available_slots()`, `book_slot()`
 
-Основан на документации и анализе оригинального Teletronix LA-2A и современных эмуляций.
+2. **TelegramNotifier** (`utils.py`)
+   - Sends formatted alerts via Telegram Bot API
+   - Methods for different notification types (slot found, booking success/failure)
 
-## Контакты
+3. **Logger** (`utils.py`)
+   - In-memory logging for the dashboard
+   - Automatic log rotation (max 500 entries)
 
-Для вопросов и предложений создавайте issue в репозитории проекта.
+4. **Streamlit Dashboard** (`main.py`)
+   - Configuration interface
+   - Task management
+   - Monitoring controls
+   - Real-time activity log
+
+## 🔧 API Endpoints Used
+
+The application uses the following Wildberries Suppliers API endpoints:
+
+```
+Base URL: https://supplies-api.wildberries.ru
+
+GET  /api/v1/warehouses              # List warehouses
+GET  /api/v1/acceptance/coefficients # Get available slots
+POST /api/v1/acceptance              # Book a slot
+```
+
+### Official Documentation
+
+- **Wildberries API Docs**: https://openapi.wildberries.ru/
+- **Supplies API**: Look for "Поставки" (Supplies) section
+
+## ⚙️ Configuration
+
+### API Rate Limiting
+
+The application implements intelligent rate limiting:
+
+- Random delay between **30-60 seconds** between polling cycles
+- 2-second delay between checking multiple warehouses in one task
+- Exponential backoff on 429 (Too Many Requests) errors
+
+Adjust in `main.py`:
+```python
+POLL_INTERVAL_MIN = 30  # Minimum seconds between checks
+POLL_INTERVAL_MAX = 60  # Maximum seconds between checks
+```
+
+### Monitoring Parameters
+
+- **Max Coefficient**: 0.0 to 20.0 (slider in UI)
+- **Date Range**: Up to 30 days recommended
+- **Warehouses**: Can monitor multiple warehouses simultaneously
+
+## 🛡️ Error Handling
+
+The application handles various error scenarios:
+
+- **Invalid API Token**: Clear error message with instructions
+- **Network Errors**: Automatic retry logic
+- **Rate Limiting (429)**: Respects Retry-After header
+- **Server Errors (5xx)**: Logs error and continues monitoring
+- **Booking Conflicts**: Notifies user via Telegram and logs
+
+## 🚨 Production Deployment
+
+### Important Note
+
+The current implementation runs monitoring while the Streamlit page is active. For **production 24/7 monitoring**, consider:
+
+1. **Separate Background Worker**:
+   ```bash
+   # Use Celery, APScheduler, or similar
+   pip install celery redis
+   ```
+
+2. **Deploy on a Server**:
+   - Use Docker for containerization
+   - Deploy on AWS, Azure, or DigitalOcean
+   - Use PM2 or systemd for process management
+
+3. **Database**:
+   - Store tasks and logs in PostgreSQL or MongoDB
+   - Current version uses in-memory storage (session state)
+
+### Docker Deployment (Example)
+
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+
+EXPOSE 8501
+
+CMD ["streamlit", "run", "main.py", "--server.port=8501", "--server.address=0.0.0.0"]
+```
+
+## 🐛 Troubleshooting
+
+### "Authentication failed" Error
+- Verify your WB API token is correct
+- Ensure token has "Supplies" permissions
+- Check if token hasn't expired
+
+### "No warehouses loaded"
+- Click "Test WB Connection" first
+- Check your internet connection
+- Verify API endpoint is accessible
+
+### Telegram Notifications Not Working
+- Verify bot token and chat ID
+- Check that you've started a conversation with the bot
+- Use "Test Telegram" button to diagnose
+
+### Slots Found But Not Booking
+- Check that mode is set to "Auto-Book"
+- Verify you have permission to book slots
+- Check logs for specific error messages
+
+## 📊 Performance Tips
+
+1. **Limit Warehouses**: Monitor only warehouses you're interested in
+2. **Reasonable Date Ranges**: 7-14 days is optimal
+3. **Coefficient Threshold**: Set realistic values (1.0-5.0 for best slots)
+4. **Network**: Ensure stable internet connection
+
+## 🔐 Security Best Practices
+
+1. **Never commit API tokens** to version control
+2. **Use environment variables** for sensitive data
+3. **Rotate tokens** regularly
+4. **Limit API permissions** to only what's needed
+5. **Use HTTPS** when deployed to production
+
+## 📝 License
+
+This project is for educational and personal use. Ensure compliance with Wildberries' Terms of Service and API usage policies.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new features
+4. Submit a pull request
+
+## 💡 Future Enhancements
+
+- [ ] Database integration (PostgreSQL)
+- [ ] Multi-user support
+- [ ] Slot booking history
+- [ ] Advanced filtering (by region, warehouse type)
+- [ ] Email notifications
+- [ ] Mobile app
+- [ ] Analytics dashboard
+- [ ] Webhook support
+
+## 📞 Support
+
+For issues related to:
+- **Wildberries API**: Contact WB support
+- **This Application**: Open an issue in the repository
+
+---
+
+**⚠️ Disclaimer**: This tool is provided as-is. Always test in a non-production environment first. The developers are not responsible for any issues arising from the use of this software.
+
+**Happy slot hunting! 🎯**

@@ -43,3 +43,26 @@ Desktop.ini
 
 # Dependencies
 _deps/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+ENV/
+env/
+.venv
+*.egg-info/
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Streamlit
+.streamlit/
+
+# Project specific
+config.json
+secrets.yaml
