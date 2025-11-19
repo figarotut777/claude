@@ -1,0 +1,384 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000001 /* NegotiationDojoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000 /* NegotiationDojoApp.swift */; };
+		A10000003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000002 /* ContentView.swift */; };
+		A10000005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10000004 /* Assets.xcassets */; };
+		A10000010 /* AudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000F /* AudioRecorder.swift */; };
+		A10000012 /* OpenAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000011 /* OpenAIService.swift */; };
+		A10000014 /* NegotiationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000013 /* NegotiationEngine.swift */; };
+		A10000016 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000015 /* Models.swift */; };
+		A10000018 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000017 /* DashboardView.swift */; };
+		A1000001A /* DialogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000019 /* DialogView.swift */; };
+		A1000001C /* CoachingTipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000001B /* CoachingTipView.swift */; };
+		A1000001E /* ResistanceBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000001D /* ResistanceBar.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A0FFFFFF9 /* NegotiationDojo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NegotiationDojo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000 /* NegotiationDojoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NegotiationDojoApp.swift; sourceTree = "<group>"; };
+		A10000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A10000004 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A10000009 /* NegotiationDojo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NegotiationDojo.entitlements; sourceTree = "<group>"; };
+		A1000000F /* AudioRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecorder.swift; sourceTree = "<group>"; };
+		A10000011 /* OpenAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIService.swift; sourceTree = "<group>"; };
+		A10000013 /* NegotiationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NegotiationEngine.swift; sourceTree = "<group>"; };
+		A10000015 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		A10000017 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		A10000019 /* DialogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialogView.swift; sourceTree = "<group>"; };
+		A1000001B /* CoachingTipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachingTipView.swift; sourceTree = "<group>"; };
+		A1000001D /* ResistanceBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResistanceBar.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A0FFFFFF6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A0FFFFFF0 = {
+			isa = PBXGroup;
+			children = (
+				A0FFFFFB /* NegotiationDojo */,
+				A0FFFFFA /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A0FFFFFA /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A0FFFFFF9 /* NegotiationDojo.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A0FFFFFB /* NegotiationDojo */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000 /* NegotiationDojoApp.swift */,
+				A10000002 /* ContentView.swift */,
+				A1000000E /* Services */,
+				A1000000D /* ViewModels */,
+				A1000000C /* Views */,
+				A1000000B /* Models */,
+				A10000004 /* Assets.xcassets */,
+				A10000009 /* NegotiationDojo.entitlements */,
+			);
+			path = NegotiationDojo;
+			sourceTree = "<group>";
+		};
+		A1000000B /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A10000015 /* Models.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A1000000C /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A10000017 /* DashboardView.swift */,
+				A10000019 /* DialogView.swift */,
+				A1000001B /* CoachingTipView.swift */,
+				A1000001D /* ResistanceBar.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		A1000000D /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				A10000013 /* NegotiationEngine.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		A1000000E /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A1000000F /* AudioRecorder.swift */,
+				A10000011 /* OpenAIService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A0FFFFFF8 /* NegotiationDojo */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1000000A /* Build configuration list for PBXNativeTarget "NegotiationDojo" */;
+			buildPhases = (
+				A0FFFFFF5 /* Sources */,
+				A0FFFFFF6 /* Frameworks */,
+				A0FFFFFF7 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NegotiationDojo;
+			productName = NegotiationDojo;
+			productReference = A0FFFFFF9 /* NegotiationDojo.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A0FFFFFF1 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+			};
+			buildConfigurationList = A0FFFFFF4 /* Build configuration list for PBXProject "NegotiationDojo" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A0FFFFFF0;
+			productRefGroup = A0FFFFFA /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A0FFFFFF8 /* NegotiationDojo */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A0FFFFFF7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000005 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A0FFFFFF5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000003 /* ContentView.swift in Sources */,
+				A10000001 /* NegotiationDojoApp.swift in Sources */,
+				A10000010 /* AudioRecorder.swift in Sources */,
+				A10000012 /* OpenAIService.swift in Sources */,
+				A10000014 /* NegotiationEngine.swift in Sources */,
+				A10000016 /* Models.swift in Sources */,
+				A10000018 /* DashboardView.swift in Sources */,
+				A1000001A /* DialogView.swift in Sources */,
+				A1000001C /* CoachingTipView.swift in Sources */,
+				A1000001E /* ResistanceBar.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A1000000B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_ENTITLEMENTS = NegotiationDojo/NegotiationDojo.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We need microphone access to record your negotiation practice sessions.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.negotiationdojo.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A1000000C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_ENTITLEMENTS = NegotiationDojo/NegotiationDojo.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We need microphone access to record your negotiation practice sessions.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.negotiationdojo.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		A1000000D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		A1000000E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A0FFFFFF4 /* Build configuration list for PBXProject "NegotiationDojo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1000000D /* Debug */,
+				A1000000E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1000000A /* Build configuration list for PBXNativeTarget "NegotiationDojo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1000000B /* Debug */,
+				A1000000C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A0FFFFFF1 /* Project object */;
+}
