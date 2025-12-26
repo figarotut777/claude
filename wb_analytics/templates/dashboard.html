@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wildberries Analytics Dashboard</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Заголовок -->
+        <header class="header">
+            <h1>📊 Wildberries Analytics</h1>
+            <div class="header-right">
+                <span class="last-update" id="lastUpdate">Обновление данных...</span>
+                <button class="btn-refresh" onclick="loadDashboard()">🔄 Обновить</button>
+            </div>
+        </header>
+
+        <!-- Фильтры периода -->
+        <div class="period-selector">
+            <button class="period-btn active" data-period="today">Сегодня</button>
+            <button class="period-btn" data-period="week">Неделя</button>
+            <button class="period-btn" data-period="month">Месяц</button>
+            <button class="period-btn" data-period="custom">Свой период</button>
+        </div>
+
+        <!-- Кастомный период -->
+        <div class="custom-period" id="customPeriod" style="display: none;">
+            <input type="date" id="startDate">
+            <span>—</span>
+            <input type="date" id="endDate">
+            <button class="btn-apply" onclick="applyCustomPeriod()">Применить</button>
+        </div>
+
+        <!-- Основные метрики -->
+        <div class="metrics-grid">
+            <!-- Продажи -->
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">📦</span>
+                    <span class="metric-title">Продажи</span>
+                </div>
+                <div class="metric-value" id="salesQty">-</div>
+                <div class="metric-change" id="salesQtyChange">-</div>
+            </div>
+
+            <!-- Выручка -->
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">💰</span>
+                    <span class="metric-title">Выручка</span>
+                </div>
+                <div class="metric-value" id="salesRevenue">-</div>
+                <div class="metric-change" id="salesRevenueChange">-</div>
+            </div>
+
+            <!-- Выручка после комиссии -->
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">💵</span>
+                    <span class="metric-title">После комиссии WB</span>
+                </div>
+                <div class="metric-value" id="revenueAfterCommission">-</div>
+                <div class="metric-change" id="revenueAfterCommissionChange">-</div>
+            </div>
+
+            <!-- Чистая прибыль -->
+            <div class="metric-card highlight">
+                <div class="metric-header">
+                    <span class="metric-icon">✨</span>
+                    <span class="metric-title">Чистая прибыль</span>
+                </div>
+                <div class="metric-value" id="netProfit">-</div>
+                <div class="metric-change" id="netProfitChange">-</div>
+            </div>
+
+            <!-- ROI -->
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">📈</span>
+                    <span class="metric-title">Рентабельность (ROI)</span>
+                </div>
+                <div class="metric-value" id="roi">-</div>
+                <div class="metric-subtitle">Прибыль / Выручка</div>
+            </div>
+
+            <!-- Средний чек -->
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">🎯</span>
+                    <span class="metric-title">Средний чек</span>
+                </div>
+                <div class="metric-value" id="avgOrderValue">-</div>
+            </div>
+        </div>
+
+        <!-- Топ товаров -->
+        <div class="section">
+            <h2>🏆 Топ-5 товаров по выручке</h2>
+            <div class="table-container">
+                <table class="products-table" id="topProductsTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Артикул</th>
+                            <th>Название</th>
+                            <th>Продажи (шт)</th>
+                            <th>Выручка (₽)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="5" class="loading">Загрузка...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Все товары -->
+        <div class="section">
+            <h2>📋 Все товары (последние 30 дней)</h2>
+            <div class="table-container">
+                <table class="products-table" id="allProductsTable">
+                    <thead>
+                        <tr>
+                            <th>NM ID</th>
+                            <th>Артикул</th>
+                            <th>Название</th>
+                            <th>Бренд</th>
+                            <th>Продажи (шт)</th>
+                            <th>Выручка (₽)</th>
+                            <th>Остатки</th>
+                            <th>Себестоимость</th>
+                            <th>Комиссия (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="9" class="loading">Загрузка...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

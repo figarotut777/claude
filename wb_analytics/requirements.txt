@@ -1,0 +1,15 @@
+# Wildberries Analytics - Зависимости
+
+# Web Framework
+Flask==3.0.0
+flask-cors==4.0.0
+
+# HTTP клиент
+requests==2.31.0
+urllib3==2.1.0
+
+# Работа с переменными окружения
+python-dotenv==1.0.0
+
+# Утилиты
+python-dateutil==2.8.2
