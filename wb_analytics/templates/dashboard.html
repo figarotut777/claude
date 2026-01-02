@@ -7,7 +7,37 @@
     <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
 <body>
-    <div class="container">
+    <!-- Боковое меню -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2>📊 WB Analytics</h2>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#dashboard" class="nav-item active" data-section="dashboard">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-text">Главная</span>
+            </a>
+            <a href="#finances" class="nav-item" data-section="finances">
+                <span class="nav-icon">💼</span>
+                <span class="nav-text">Финансы</span>
+            </a>
+            <a href="#products" class="nav-item" data-section="products">
+                <span class="nav-icon">📦</span>
+                <span class="nav-text">Товары</span>
+            </a>
+            <a href="#expenses" class="nav-item" data-section="expenses">
+                <span class="nav-icon">💸</span>
+                <span class="nav-text">Расходы</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Основной контент -->
+    <main class="main-content">
+        <div class="container">
+
+        <!-- Секция: Главная (Dashboard) -->
+        <div id="section-dashboard" class="content-section active">
         <!-- Заголовок -->
         <header class="header">
             <h1>📊 Wildberries Analytics</h1>
@@ -95,6 +125,59 @@
             </div>
         </div>
 
+        <!-- Расходы WB -->
+        <div class="section">
+            <h2>💸 Расходы Wildberries</h2>
+            <div class="metrics-grid">
+                <!-- Комиссия -->
+                <div class="metric-card expense">
+                    <div class="metric-header">
+                        <span class="metric-icon">🏦</span>
+                        <span class="metric-title">Комиссия WB</span>
+                    </div>
+                    <div class="metric-value" id="expenseCommission">-</div>
+                </div>
+
+                <!-- Логистика -->
+                <div class="metric-card expense">
+                    <div class="metric-header">
+                        <span class="metric-icon">🚚</span>
+                        <span class="metric-title">Логистика</span>
+                    </div>
+                    <div class="metric-value" id="expenseLogistics">-</div>
+                    <div class="metric-subtitle">Доставка + возврат</div>
+                </div>
+
+                <!-- Хранение -->
+                <div class="metric-card expense">
+                    <div class="metric-header">
+                        <span class="metric-icon">📦</span>
+                        <span class="metric-title">Хранение</span>
+                    </div>
+                    <div class="metric-value" id="expenseStorage">-</div>
+                </div>
+
+                <!-- Штрафы -->
+                <div class="metric-card expense">
+                    <div class="metric-header">
+                        <span class="metric-icon">⚠️</span>
+                        <span class="metric-title">Штрафы</span>
+                    </div>
+                    <div class="metric-value" id="expensePenalties">-</div>
+                </div>
+
+                <!-- К выплате от WB -->
+                <div class="metric-card success">
+                    <div class="metric-header">
+                        <span class="metric-icon">💳</span>
+                        <span class="metric-title">К выплате от WB</span>
+                    </div>
+                    <div class="metric-value" id="toPayFromWB">-</div>
+                    <div class="metric-subtitle">После всех вычетов</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Топ товаров -->
         <div class="section">
             <h2>🏆 Топ-5 товаров по выручке</h2>
@@ -144,7 +227,237 @@
                 </table>
             </div>
         </div>
-    </div>
+        </div>
+        <!-- Конец секции: Главная -->
+
+        <!-- Секция: Финансы (P&L) -->
+        <div id="section-finances" class="content-section">
+            <header class="header">
+                <h1>💼 Финансовый отчёт (P&L)</h1>
+                <div class="header-right">
+                    <span class="last-update" id="lastUpdateFinances">-</span>
+                    <button class="btn-refresh" onclick="loadDashboard()">🔄 Обновить</button>
+                </div>
+            </header>
+
+            <!-- Фильтры периода -->
+            <div class="period-selector">
+                <button class="period-btn active" data-period="today">Сегодня</button>
+                <button class="period-btn" data-period="week">Неделя</button>
+                <button class="period-btn" data-period="month">Месяц</button>
+                <button class="period-btn" data-period="custom">Свой период</button>
+            </div>
+
+            <!-- Кастомный период -->
+            <div class="custom-period" style="display: none;">
+                <input type="date" id="startDateFinances">
+                <span>—</span>
+                <input type="date" id="endDateFinances">
+                <button class="btn-apply" onclick="applyCustomPeriod()">Применить</button>
+            </div>
+
+            <!-- P&L Statement -->
+            <div class="section">
+                <h2>📊 Отчёт о прибылях и убытках</h2>
+                <div class="table-container">
+                    <table class="products-table">
+                        <thead>
+                            <tr>
+                                <th>Показатель</th>
+                                <th style="text-align: right;">Сумма (₽)</th>
+                                <th style="text-align: right;">% от выручки</th>
+                            </tr>
+                        </thead>
+                        <tbody id="plTable">
+                            <tr>
+                                <td colspan="3" class="loading">Загрузка...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Детализация по товарам -->
+            <div class="section">
+                <h2>📦 Прибыльность по товарам</h2>
+                <div class="table-container">
+                    <table class="products-table">
+                        <thead>
+                            <tr>
+                                <th>Артикул</th>
+                                <th>Название</th>
+                                <th style="text-align: right;">Выручка</th>
+                                <th style="text-align: right;">Расходы WB</th>
+                                <th style="text-align: right;">Себестоимость</th>
+                                <th style="text-align: right;">Прибыль</th>
+                                <th style="text-align: right;">Маржа %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productProfitTable">
+                            <tr>
+                                <td colspan="7" class="loading">Загрузка...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- Конец секции: Финансы -->
+
+        <!-- Секция: Товары -->
+        <div id="section-products" class="content-section">
+            <header class="header">
+                <h1>📦 Управление товарами</h1>
+                <div class="header-right">
+                    <span class="last-update" id="lastUpdateProducts">-</span>
+                    <button class="btn-refresh" onclick="loadDashboard()">🔄 Обновить</button>
+                </div>
+            </header>
+
+            <div class="section">
+                <h2>📋 Все товары с полной статистикой</h2>
+                <div class="table-container">
+                    <table class="products-table">
+                        <thead>
+                            <tr>
+                                <th>NM ID</th>
+                                <th>Артикул</th>
+                                <th>Название</th>
+                                <th>Бренд</th>
+                                <th>Продажи (30д)</th>
+                                <th>Выручка (30д)</th>
+                                <th>Остатки</th>
+                                <th>Себестоимость</th>
+                                <th>Комиссия %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="allProductsTableProducts">
+                            <tr>
+                                <td colspan="9" class="loading">Загрузка...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- Конец секции: Товары -->
+
+        <!-- Секция: Расходы -->
+        <div id="section-expenses" class="content-section">
+            <header class="header">
+                <h1>💸 Детализация расходов</h1>
+                <div class="header-right">
+                    <span class="last-update" id="lastUpdateExpenses">-</span>
+                    <button class="btn-refresh" onclick="loadDashboard()">🔄 Обновить</button>
+                </div>
+            </header>
+
+            <!-- Фильтры периода -->
+            <div class="period-selector">
+                <button class="period-btn active" data-period="today">Сегодня</button>
+                <button class="period-btn" data-period="week">Неделя</button>
+                <button class="period-btn" data-period="month">Месяц</button>
+                <button class="period-btn" data-period="custom">Свой период</button>
+            </div>
+
+            <!-- Кастомный период -->
+            <div class="custom-period" style="display: none;">
+                <input type="date" id="startDateExpenses">
+                <span>—</span>
+                <input type="date" id="endDateExpenses">
+                <button class="btn-apply" onclick="applyCustomPeriod()">Применить</button>
+            </div>
+
+            <!-- Основные расходы -->
+            <div class="section">
+                <h2>💰 Расходы Wildberries</h2>
+                <div class="metrics-grid">
+                    <!-- Комиссия -->
+                    <div class="metric-card expense">
+                        <div class="metric-header">
+                            <span class="metric-icon">🏦</span>
+                            <span class="metric-title">Комиссия WB</span>
+                        </div>
+                        <div class="metric-value" id="expenseCommissionDetails">-</div>
+                    </div>
+
+                    <!-- Логистика -->
+                    <div class="metric-card expense">
+                        <div class="metric-header">
+                            <span class="metric-icon">🚚</span>
+                            <span class="metric-title">Логистика</span>
+                        </div>
+                        <div class="metric-value" id="expenseLogisticsDetails">-</div>
+                        <div class="metric-subtitle">Доставка + возврат</div>
+                    </div>
+
+                    <!-- Хранение -->
+                    <div class="metric-card expense">
+                        <div class="metric-header">
+                            <span class="metric-icon">📦</span>
+                            <span class="metric-title">Хранение</span>
+                        </div>
+                        <div class="metric-value" id="expenseStorageDetails">-</div>
+                    </div>
+
+                    <!-- Штрафы -->
+                    <div class="metric-card expense">
+                        <div class="metric-header">
+                            <span class="metric-icon">⚠️</span>
+                            <span class="metric-title">Штрафы</span>
+                        </div>
+                        <div class="metric-value" id="expensePenaltiesDetails">-</div>
+                    </div>
+
+                    <!-- Всего расходов WB -->
+                    <div class="metric-card expense">
+                        <div class="metric-header">
+                            <span class="metric-icon">💸</span>
+                            <span class="metric-title">Всего расходов WB</span>
+                        </div>
+                        <div class="metric-value" id="totalWBExpenses">-</div>
+                    </div>
+
+                    <!-- Себестоимость -->
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span class="metric-icon">📊</span>
+                            <span class="metric-title">Себестоимость товаров</span>
+                        </div>
+                        <div class="metric-value" id="costOfGoods">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Детализация расходов по товарам -->
+            <div class="section">
+                <h2>📦 Расходы по товарам</h2>
+                <div class="table-container">
+                    <table class="products-table">
+                        <thead>
+                            <tr>
+                                <th>Артикул</th>
+                                <th>Название</th>
+                                <th style="text-align: right;">Комиссия</th>
+                                <th style="text-align: right;">Логистика</th>
+                                <th style="text-align: right;">Хранение</th>
+                                <th style="text-align: right;">Штрафы</th>
+                                <th style="text-align: right;">Всего расходов</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productExpensesTable">
+                            <tr>
+                                <td colspan="7" class="loading">Загрузка...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- Конец секции: Расходы -->
+
+        </div>
+    </main>
 
     <script src="/static/js/dashboard.js"></script>
 </body>

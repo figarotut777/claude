@@ -6,12 +6,58 @@ let currentPeriod = 'today';
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
+    initSidebarNavigation();
     initPeriodSelector();
     loadDashboard();
 
     // Автообновление каждые 5 минут
     setInterval(loadDashboard, 5 * 60 * 1000);
 });
+
+// Инициализация навигации в боковом меню
+function initSidebarNavigation() {
+    const navItems = document.querySelectorAll('.nav-item');
+
+    navItems.forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+
+            // Снятие активного класса со всех пунктов меню
+            navItems.forEach(nav => nav.classList.remove('active'));
+
+            // Установка активного класса на выбранный пункт
+            this.classList.add('active');
+
+            // Получение секции для показа
+            const sectionId = this.dataset.section;
+            showSection(sectionId);
+        });
+    });
+}
+
+// Показ выбранной секции
+function showSection(sectionId) {
+    // Скрытие всех секций
+    const sections = document.querySelectorAll('.content-section');
+    sections.forEach(section => section.classList.remove('active'));
+
+    // Показ выбранной секции
+    const targetSection = document.getElementById(`section-${sectionId}`);
+    if (targetSection) {
+        targetSection.classList.add('active');
+    }
+
+    // Загрузка данных для секции
+    if (sectionId === 'dashboard') {
+        loadDashboard();
+    } else if (sectionId === 'finances') {
+        loadFinances();
+    } else if (sectionId === 'products') {
+        loadProducts();
+    } else if (sectionId === 'expenses') {
+        loadExpenses();
+    }
+}
 
 // Инициализация селектора периода
 function initPeriodSelector() {
@@ -92,6 +138,7 @@ function updateMetrics(metrics) {
 
     const sales = metrics.sales || {};
     const profit = metrics.profit || {};
+    const expenses = metrics.expenses || {};
     const trends = metrics.trends || {};
 
     // Продажи (штуки)
@@ -115,6 +162,20 @@ function updateMetrics(metrics) {
     // Средний чек
     document.getElementById('avgOrderValue').textContent =
         formatCurrency(sales.avg_order_value || 0);
+
+    // Расходы WB
+    document.getElementById('expenseCommission').textContent =
+        formatCurrency(expenses.commission || 0);
+    document.getElementById('expenseLogistics').textContent =
+        formatCurrency(expenses.logistics || 0);
+    document.getElementById('expenseStorage').textContent =
+        formatCurrency(expenses.storage || 0);
+    document.getElementById('expensePenalties').textContent =
+        formatCurrency(expenses.penalties || 0);
+
+    // К выплате от WB
+    document.getElementById('toPayFromWB').textContent =
+        formatCurrency(sales.to_pay_from_wb || 0);
 }
 
 // Обновление индикатора тренда
@@ -238,4 +299,191 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Загрузка раздела "Финансы" (P&L)
+async function loadFinances() {
+    try {
+        showLoading();
+
+        let url = `${API_BASE_URL}/api/dashboard?period=${currentPeriod}`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const metrics = data.metrics;
+
+        // Обновление P&L таблицы
+        updatePLTable(metrics);
+
+        // Обновление прибыльности по товарам
+        updateProductProfitTable(data.products_summary, metrics);
+
+        // Обновление времени
+        document.getElementById('lastUpdateFinances').textContent =
+            `Обновлено: ${formatDateTime(new Date())}`;
+
+    } catch (error) {
+        console.error('Ошибка загрузки финансов:', error);
+        showError('Не удалось загрузить финансовые данные');
+    }
+}
+
+// Обновление P&L таблицы
+function updatePLTable(metrics) {
+    const tbody = document.getElementById('plTable');
+
+    if (!metrics) {
+        tbody.innerHTML = '<tr><td colspan="3" class="loading">Нет данных</td></tr>';
+        return;
+    }
+
+    const sales = metrics.sales || {};
+    const expenses = metrics.expenses || {};
+    const profit = metrics.profit || {};
+
+    const revenue = sales.revenue || 0;
+    const commission = expenses.commission || 0;
+    const logistics = expenses.logistics || 0;
+    const storage = expenses.storage || 0;
+    const penalties = expenses.penalties || 0;
+    const totalWBExpenses = expenses.total_wb_expenses || 0;
+    const costOfGoods = expenses.cost_of_goods || 0;
+    const netProfit = profit.net_profit || 0;
+
+    tbody.innerHTML = `
+        <tr style="background: #f9fafb; font-weight: 600;">
+            <td>💰 Выручка</td>
+            <td style="text-align: right;">${formatCurrency(revenue)}</td>
+            <td style="text-align: right;">100.0%</td>
+        </tr>
+        <tr>
+            <td style="padding-left: 30px;">Минус: Комиссия WB</td>
+            <td style="text-align: right; color: var(--danger-color);">-${formatCurrency(commission)}</td>
+            <td style="text-align: right;">${formatPercent((commission / revenue * 100) || 0)}</td>
+        </tr>
+        <tr>
+            <td style="padding-left: 30px;">Минус: Логистика</td>
+            <td style="text-align: right; color: var(--danger-color);">-${formatCurrency(logistics)}</td>
+            <td style="text-align: right;">${formatPercent((logistics / revenue * 100) || 0)}</td>
+        </tr>
+        <tr>
+            <td style="padding-left: 30px;">Минус: Хранение</td>
+            <td style="text-align: right; color: var(--danger-color);">-${formatCurrency(storage)}</td>
+            <td style="text-align: right;">${formatPercent((storage / revenue * 100) || 0)}</td>
+        </tr>
+        <tr>
+            <td style="padding-left: 30px;">Минус: Штрафы</td>
+            <td style="text-align: right; color: var(--danger-color);">-${formatCurrency(penalties)}</td>
+            <td style="text-align: right;">${formatPercent((penalties / revenue * 100) || 0)}</td>
+        </tr>
+        <tr style="background: #fff7ed; font-weight: 600;">
+            <td>📊 Итого расходов WB</td>
+            <td style="text-align: right; color: var(--warning-color);">-${formatCurrency(totalWBExpenses)}</td>
+            <td style="text-align: right;">${formatPercent((totalWBExpenses / revenue * 100) || 0)}</td>
+        </tr>
+        <tr>
+            <td>💳 К выплате от WB</td>
+            <td style="text-align: right; color: var(--success-color);">${formatCurrency(sales.to_pay_from_wb || 0)}</td>
+            <td style="text-align: right;">${formatPercent(((sales.to_pay_from_wb || 0) / revenue * 100) || 0)}</td>
+        </tr>
+        <tr>
+            <td style="padding-left: 30px;">Минус: Себестоимость</td>
+            <td style="text-align: right; color: var(--danger-color);">-${formatCurrency(costOfGoods)}</td>
+            <td style="text-align: right;">${formatPercent((costOfGoods / revenue * 100) || 0)}</td>
+        </tr>
+        <tr style="background: ${netProfit >= 0 ? '#d1fae5' : '#fee2e2'}; font-weight: 700; font-size: 16px;">
+            <td>✨ Чистая прибыль</td>
+            <td style="text-align: right; color: ${netProfit >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">${formatCurrency(netProfit)}</td>
+            <td style="text-align: right;">${formatPercent(profit.margin_percent || 0)}</td>
+        </tr>
+    `;
+}
+
+// Обновление таблицы прибыльности по товарам
+function updateProductProfitTable(products, metrics) {
+    const tbody = document.getElementById('productProfitTable');
+
+    if (!products || products.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="loading">Нет данных</td></tr>';
+        return;
+    }
+
+    // Заглушка - нужно будет получить детализацию с бэкенда
+    tbody.innerHTML = '<tr><td colspan="7" class="loading">Детализация по товарам в разработке</td></tr>';
+}
+
+// Загрузка раздела "Товары"
+async function loadProducts() {
+    try {
+        showLoading();
+
+        let url = `${API_BASE_URL}/api/dashboard?period=month`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Обновление таблицы товаров
+        const tbody = document.querySelector('#allProductsTableProducts tbody');
+        updateAllProducts(data.products_summary);
+
+        // Обновление времени
+        document.getElementById('lastUpdateProducts').textContent =
+            `Обновлено: ${formatDateTime(new Date())}`;
+
+    } catch (error) {
+        console.error('Ошибка загрузки товаров:', error);
+        showError('Не удалось загрузить данные товаров');
+    }
+}
+
+// Загрузка раздела "Расходы"
+async function loadExpenses() {
+    try {
+        showLoading();
+
+        let url = `${API_BASE_URL}/api/dashboard?period=${currentPeriod}`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const metrics = data.metrics;
+        const expenses = metrics.expenses || {};
+
+        // Обновление карточек расходов
+        document.getElementById('expenseCommissionDetails').textContent =
+            formatCurrency(expenses.commission || 0);
+        document.getElementById('expenseLogisticsDetails').textContent =
+            formatCurrency(expenses.logistics || 0);
+        document.getElementById('expenseStorageDetails').textContent =
+            formatCurrency(expenses.storage || 0);
+        document.getElementById('expensePenaltiesDetails').textContent =
+            formatCurrency(expenses.penalties || 0);
+        document.getElementById('totalWBExpenses').textContent =
+            formatCurrency(expenses.total_wb_expenses || 0);
+        document.getElementById('costOfGoods').textContent =
+            formatCurrency(expenses.cost_of_goods || 0);
+
+        // Обновление таблицы расходов по товарам
+        const tbody = document.getElementById('productExpensesTable');
+        tbody.innerHTML = '<tr><td colspan="7" class="loading">Детализация расходов по товарам в разработке</td></tr>';
+
+        // Обновление времени
+        document.getElementById('lastUpdateExpenses').textContent =
+            `Обновлено: ${formatDateTime(new Date())}`;
+
+    } catch (error) {
+        console.error('Ошибка загрузки расходов:', error);
+        showError('Не удалось загрузить данные расходов');
+    }
 }

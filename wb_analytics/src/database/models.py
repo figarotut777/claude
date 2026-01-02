@@ -608,6 +608,37 @@ class DatabaseManager:
 
             return [dict(row) for row in cursor.fetchall()]
 
+    def get_financial_report_for_period(self, start_date: str, end_date: str,
+                                        nm_id: int = None) -> List[Dict]:
+        """
+        Получение финансового отчёта за период
+
+        Args:
+            start_date: Начало периода (ISO формат)
+            end_date: Конец периода (ISO формат)
+            nm_id: ID товара (опционально)
+
+        Returns:
+            Список записей финансового отчёта
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            if nm_id:
+                cursor.execute("""
+                    SELECT * FROM financial_report
+                    WHERE rr_dt BETWEEN ? AND ? AND nm_id = ?
+                    ORDER BY rr_dt
+                """, (start_date, end_date, nm_id))
+            else:
+                cursor.execute("""
+                    SELECT * FROM financial_report
+                    WHERE rr_dt BETWEEN ? AND ?
+                    ORDER BY rr_dt
+                """, (start_date, end_date))
+
+            return [dict(row) for row in cursor.fetchall()]
+
     def set_metadata(self, key: str, value: str):
         """Сохранение метаданных"""
         with self.get_connection() as conn:

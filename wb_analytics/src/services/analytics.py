@@ -90,6 +90,9 @@ class AnalyticsService:
         sales = self.db.get_sales_for_period(start_date, end_date, nm_id)
         orders = self.db.get_orders_for_period(start_date, end_date, nm_id)
 
+        # ГЛАВНОЕ: Получение финансового отчёта WB (содержит все расходы!)
+        financial_report = self.db.get_financial_report_for_period(start_date, end_date, nm_id)
+
         # Получение информации о товарах
         if nm_id:
             products = [self.db.get_product_by_nm_id(nm_id)]
@@ -99,37 +102,60 @@ class AnalyticsService:
         # Создание мапы товаров для быстрого доступа
         products_map = {p['nm_id']: p for p in products if p}
 
-        # Расчёт основных метрик
-        total_sales_qty = len(sales)
-        total_sales_revenue = sum(sale.get('forPay', 0) or 0 for sale in sales)
+        # Расчёт метрик из ФИНАНСОВОГО ОТЧЁТА WB (самые точные данные!)
+        total_sales_qty = 0
+        total_sales_revenue = 0  # Выручка до вычетов
+        total_to_pay = 0  # К выплате продавцу (после ВСЕХ расходов WB)
+        total_commission = 0  # Комиссия WB
+        total_logistics = 0  # Логистика (доставка + возврат)
+        total_storage = 0  # Хранение
+        total_penalties = 0  # Штрафы
+        total_cost = 0  # Себестоимость товаров
 
-        # Расчёт выручки после комиссии WB
-        revenue_after_commission = 0
-        total_cost = 0
-        net_profit = 0
+        for item in financial_report:
+            qty = item.get('quantity', 0)
 
-        for sale in sales:
-            sale_nm_id = sale.get('nm_id')
-            product = products_map.get(sale_nm_id)
+            # Только продажи (не возвраты)
+            if item.get('doc_type_name') == 'Продажа':
+                total_sales_qty += qty
 
-            if product:
-                # Выручка с продажи
-                sale_revenue = sale.get('forPay', 0) or 0
+                # Выручка (цена со скидкой)
+                retail_amount = item.get('retail_amount', 0) or 0
+                total_sales_revenue += retail_amount
+
+                # К выплате продавцу (уже после ВСЕХ вычетов WB)
+                to_pay = item.get('ppvz_for_pay', 0) or 0
+                total_to_pay += to_pay
 
                 # Комиссия WB
-                wb_commission_percent = product.get('wb_commission_percent', 15)
-                commission_amount = sale_revenue * (wb_commission_percent / 100)
+                commission = item.get('ppvz_sales_commission', 0) or 0
+                total_commission += commission
 
-                # Выручка после комиссии
-                revenue_after_comm = sale_revenue - commission_amount
-                revenue_after_commission += revenue_after_comm
+                # Логистика
+                delivery = item.get('delivery_rub', 0) or 0
+                return_amount = item.get('return_amount', 0) or 0
+                total_logistics += (delivery + return_amount)
 
-                # Себестоимость
-                cost_price = product.get('cost_price', 0)
-                total_cost += cost_price
+                # Хранение
+                storage = item.get('storage_fee', 0) or 0
+                total_storage += storage
 
-                # Чистая прибыль = Выручка после комиссии - Себестоимость
-                net_profit += (revenue_after_comm - cost_price)
+                # Штрафы
+                penalty = item.get('penalty', 0) or 0
+                total_penalties += penalty
+
+                # Себестоимость из настроек товара
+                product_nm_id = item.get('nm_id')
+                product = products_map.get(product_nm_id)
+                if product and qty > 0:
+                    cost_price = product.get('cost_price', 0) or 0
+                    total_cost += cost_price * qty
+
+        # ЧИСТАЯ ПРИБЫЛЬ = К выплате от WB - Себестоимость
+        net_profit = total_to_pay - total_cost
+
+        # Выручка после комиссии WB (но до логистики/хранения)
+        revenue_after_commission = total_sales_revenue - total_commission
 
         # Расчёт метрик по заказам
         total_orders = len(orders)
@@ -155,6 +181,7 @@ class AnalyticsService:
                 'quantity': total_sales_qty,
                 'revenue': round(total_sales_revenue, 2),
                 'revenue_after_commission': round(revenue_after_commission, 2),
+                'to_pay_from_wb': round(total_to_pay, 2),  # К выплате от WB
                 'avg_order_value': round(avg_order_value, 2)
             },
             'orders': {
@@ -163,10 +190,19 @@ class AnalyticsService:
                 'cancelled': cancelled_orders,
                 'conversion_rate': round(conversion_rate, 2)
             },
+            'expenses': {
+                'commission': round(total_commission, 2),  # Комиссия WB
+                'logistics': round(total_logistics, 2),  # Логистика
+                'storage': round(total_storage, 2),  # Хранение
+                'penalties': round(total_penalties, 2),  # Штрафы
+                'total_wb_expenses': round(total_commission + total_logistics + total_storage + total_penalties, 2),
+                'cost_of_goods': round(total_cost, 2)  # Себестоимость
+            },
             'profit': {
                 'total_cost': round(total_cost, 2),
                 'net_profit': round(net_profit, 2),
-                'roi': round(roi, 2)
+                'roi': round(roi, 2),
+                'margin_percent': round((net_profit / total_sales_revenue * 100) if total_sales_revenue > 0 else 0, 2)
             }
         }
 
