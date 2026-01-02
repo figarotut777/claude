@@ -108,7 +108,7 @@ async function loadDashboard(customStart = null, customEnd = null) {
         let url = `${API_BASE_URL}/api/dashboard?period=${currentPeriod}`;
 
         if (currentPeriod === 'custom' && customStart && customEnd) {
-            url += `&start=${customStart}T00:00:00Z&end=${customEnd}T23:59:59Z`;
+            url += `&custom_start=${customStart}T00:00:00Z&custom_end=${customEnd}T23:59:59Z`;
         }
 
         // Запрос данных
@@ -430,9 +430,26 @@ async function loadProducts() {
 
         const data = await response.json();
 
-        // Обновление таблицы товаров
-        const tbody = document.querySelector('#allProductsTableProducts tbody');
-        updateAllProducts(data.products_summary);
+        // Обновление таблицы товаров в секции "Товары"
+        const tbody = document.querySelector('#allProductsTableProducts');
+
+        if (!data.products_summary || data.products_summary.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="loading">Нет данных</td></tr>';
+        } else {
+            tbody.innerHTML = data.products_summary.map(product => `
+                <tr>
+                    <td>${product.nm_id || '-'}</td>
+                    <td>${escapeHtml(product.article || '-')}</td>
+                    <td>${escapeHtml(product.name || '-')}</td>
+                    <td>${escapeHtml(product.brand || '-')}</td>
+                    <td>${formatNumber(product.sales_qty_30d || 0)}</td>
+                    <td><strong>${formatCurrency(product.revenue_30d || 0)}</strong></td>
+                    <td>${formatNumber(product.stock_qty || 0)}</td>
+                    <td>${formatCurrency(product.cost_price || 0)}</td>
+                    <td>${formatPercent(product.wb_commission || 0)}</td>
+                </tr>
+            `).join('');
+        }
 
         // Обновление времени
         document.getElementById('lastUpdateProducts').textContent =
