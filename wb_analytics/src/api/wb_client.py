@@ -247,15 +247,16 @@ class WildberriesAPIClient:
 
     def get_all_data_for_period(self, days_back: int = 7) -> Dict[str, List[Dict]]:
         """
-        Получение всех данных (продажи, заказы, остатки) за указанный период
+        Получение всех данных (продажи, заказы, остатки, финансовый отчёт) за указанный период
 
         Args:
             days_back: Количество дней назад от текущей даты
 
         Returns:
-            Словарь с ключами 'sales', 'orders', 'stocks'
+            Словарь с ключами 'sales', 'orders', 'stocks', 'financial_report'
         """
-        # Вычисление даты начала
+        # Вычисление даты начала и конца
+        date_to = datetime.utcnow().isoformat() + 'Z'
         date_from = (datetime.utcnow() - timedelta(days=days_back)).isoformat() + 'Z'
 
         self.logger.info(f"Получение всех данных за последние {days_back} дней")
@@ -263,7 +264,8 @@ class WildberriesAPIClient:
         result = {
             'sales': [],
             'orders': [],
-            'stocks': []
+            'stocks': [],
+            'financial_report': []
         }
 
         # Получение продаж
@@ -275,19 +277,28 @@ class WildberriesAPIClient:
         time.sleep(1)
 
         # Получение остатков
-        result['stocks'] = self.get_stocks(date_from=date_from)
+        result['stocks'] = self.get_stocks()
+        time.sleep(1)
+
+        # Получение детального финансового отчёта (ГЛАВНОЕ для расчёта прибыли!)
+        result['financial_report'] = self.get_report_detail_by_period(
+            date_from=date_from,
+            date_to=date_to
+        )
 
         total_records = (
             len(result['sales']) +
             len(result['orders']) +
-            len(result['stocks'])
+            len(result['stocks']) +
+            len(result['financial_report'])
         )
 
         self.logger.info(
             f"Всего получено {total_records} записей: "
             f"продажи={len(result['sales'])}, "
             f"заказы={len(result['orders'])}, "
-            f"остатки={len(result['stocks'])}"
+            f"остатки={len(result['stocks'])}, "
+            f"финансовый отчёт={len(result['financial_report'])}"
         )
 
         return result

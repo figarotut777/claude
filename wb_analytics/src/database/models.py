@@ -156,6 +156,67 @@ class DatabaseManager:
                 ON orders(nm_id, date)
             """)
 
+            # Таблица детального финансового отчёта (ГЛАВНАЯ для расчёта прибыли!)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS financial_report (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    realizationreport_id INTEGER,
+                    rrd_id INTEGER,
+                    nm_id INTEGER NOT NULL,
+                    sa_name TEXT,
+                    subject_name TEXT,
+                    brand_name TEXT,
+                    ts_name TEXT,
+                    barcode TEXT,
+                    doc_type_name TEXT,
+                    quantity INTEGER DEFAULT 0,
+                    retail_price REAL,
+                    retail_amount REAL,
+                    sale_percent REAL DEFAULT 0,
+                    commission_percent REAL DEFAULT 0,
+                    office_name TEXT,
+                    supplier_oper_name TEXT,
+                    order_dt TIMESTAMP,
+                    sale_dt TIMESTAMP,
+                    rr_dt TIMESTAMP,
+                    shk_id TEXT,
+                    retail_price_withdisc_rub REAL,
+                    delivery_amount REAL DEFAULT 0,
+                    return_amount REAL DEFAULT 0,
+                    delivery_rub REAL DEFAULT 0,
+                    gi_box_type_name TEXT,
+                    product_discount_for_report REAL DEFAULT 0,
+                    supplier_promo REAL DEFAULT 0,
+                    ppvz_spp_prc REAL DEFAULT 0,
+                    ppvz_kvw_prc_base REAL DEFAULT 0,
+                    ppvz_kvw_prc REAL DEFAULT 0,
+                    ppvz_sales_commission REAL DEFAULT 0,
+                    ppvz_for_pay REAL DEFAULT 0,
+                    ppvz_reward REAL DEFAULT 0,
+                    ppvz_vw REAL DEFAULT 0,
+                    ppvz_vw_nds REAL DEFAULT 0,
+                    ppvz_office_name TEXT,
+                    penalty REAL DEFAULT 0,
+                    additional_payment REAL DEFAULT 0,
+                    storage_fee REAL DEFAULT 0,
+                    bonus_type_name TEXT,
+                    srid TEXT,
+                    date_from DATE,
+                    date_to DATE,
+                    create_dt TIMESTAMP,
+                    currency_name TEXT,
+                    suppliercontract_code TEXT,
+                    fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (nm_id) REFERENCES products (nm_id)
+                )
+            """)
+
+            # Индекс для финансового отчёта
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_financial_nm_date
+                ON financial_report(nm_id, rr_dt)
+            """)
+
             # Таблица для хранения метаданных и конфигурации
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS metadata (
@@ -339,6 +400,91 @@ class DatabaseManager:
                 count += 1
 
             self.logger.info(f"Добавлено {count} записей о заказах")
+            return count
+
+    def add_financial_report_batch(self, report_data: List[Dict]) -> int:
+        """
+        Массовое добавление данных финансового отчёта
+
+        Args:
+            report_data: Список словарей с данными финансового отчёта
+
+        Returns:
+            Количество добавленных записей
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            count = 0
+
+            for item in report_data:
+                cursor.execute("""
+                    INSERT INTO financial_report (
+                        realizationreport_id, rrd_id, nm_id, sa_name,
+                        subject_name, brand_name, ts_name, barcode,
+                        doc_type_name, quantity, retail_price, retail_amount,
+                        sale_percent, commission_percent, office_name,
+                        supplier_oper_name, order_dt, sale_dt, rr_dt,
+                        shk_id, retail_price_withdisc_rub, delivery_amount,
+                        return_amount, delivery_rub, gi_box_type_name,
+                        product_discount_for_report, supplier_promo,
+                        ppvz_spp_prc, ppvz_kvw_prc_base, ppvz_kvw_prc,
+                        ppvz_sales_commission, ppvz_for_pay, ppvz_reward,
+                        ppvz_vw, ppvz_vw_nds, ppvz_office_name,
+                        penalty, additional_payment, storage_fee,
+                        bonus_type_name, srid, date_from, date_to,
+                        create_dt, currency_name, suppliercontract_code
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    item.get('realizationreport_id'),
+                    item.get('rrd_id'),
+                    item.get('nm_id'),
+                    item.get('sa_name'),
+                    item.get('subject_name'),
+                    item.get('brand_name'),
+                    item.get('ts_name'),
+                    item.get('barcode'),
+                    item.get('doc_type_name'),
+                    item.get('quantity', 0),
+                    item.get('retail_price'),
+                    item.get('retail_amount'),
+                    item.get('sale_percent', 0),
+                    item.get('commission_percent', 0),
+                    item.get('office_name'),
+                    item.get('supplier_oper_name'),
+                    item.get('order_dt'),
+                    item.get('sale_dt'),
+                    item.get('rr_dt'),
+                    item.get('shk_id'),
+                    item.get('retail_price_withdisc_rub'),
+                    item.get('delivery_amount', 0),
+                    item.get('return_amount', 0),
+                    item.get('delivery_rub', 0),
+                    item.get('gi_box_type_name'),
+                    item.get('product_discount_for_report', 0),
+                    item.get('supplier_promo', 0),
+                    item.get('ppvz_spp_prc', 0),
+                    item.get('ppvz_kvw_prc_base', 0),
+                    item.get('ppvz_kvw_prc', 0),
+                    item.get('ppvz_sales_commission', 0),
+                    item.get('ppvz_for_pay', 0),
+                    item.get('ppvz_reward', 0),
+                    item.get('ppvz_vw', 0),
+                    item.get('ppvz_vw_nds', 0),
+                    item.get('ppvz_office_name'),
+                    item.get('penalty', 0),
+                    item.get('additional_payment', 0),
+                    item.get('storage_fee', 0),
+                    item.get('bonus_type_name'),
+                    item.get('srid'),
+                    item.get('date_from'),
+                    item.get('date_to'),
+                    item.get('create_dt'),
+                    item.get('currency_name'),
+                    item.get('suppliercontract_code')
+                ))
+                count += 1
+
+            self.logger.info(f"Добавлено {count} записей финансового отчёта")
             return count
 
     def get_products(self) -> List[Dict]:

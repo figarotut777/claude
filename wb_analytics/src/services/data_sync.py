@@ -69,13 +69,20 @@ class DataSyncService:
                 self._sync_products_from_stocks(data['stocks'])
                 stats['stocks'] = self.db.add_stocks_batch(data['stocks'])
 
+            # Синхронизация финансового отчёта (ГЛАВНОЕ!)
+            if data['financial_report']:
+                self._sync_products_from_financial_report(data['financial_report'])
+                stats['financial_report'] = self.db.add_financial_report_batch(data['financial_report'])
+                self.logger.info(f"Синхронизировано {stats['financial_report']} записей финансового отчёта")
+
             # Обновление времени последней синхронизации
             self.db.set_metadata('last_full_sync', datetime.utcnow().isoformat())
 
             self.logger.info(
                 f"Полная синхронизация завершена: "
                 f"продажи={stats['sales']}, заказы={stats['orders']}, "
-                f"остатки={stats['stocks']}"
+                f"остатки={stats['stocks']}, "
+                f"финансовый отчёт={stats.get('financial_report', 0)}"
             )
 
             return stats
@@ -254,6 +261,43 @@ class DataSyncService:
                 self.logger.warning(f"Не удалось добавить товар {product['nm_id']}: {e}")
 
         self.logger.debug(f"Синхронизировано {len(products_map)} товаров из остатков")
+
+    def _sync_products_from_financial_report(self, report: List[Dict]):
+        """
+        Синхронизация товаров из финансового отчёта
+
+        Args:
+            report: Список записей финансового отчёта
+        """
+        products_map = {}
+
+        for item in report:
+            nm_id = item.get('nm_id')
+            if nm_id and nm_id not in products_map:
+                products_map[nm_id] = {
+                    'nm_id': nm_id,
+                    'article': item.get('sa_name', ''),
+                    'name': item.get('subject_name', f'Товар {nm_id}'),
+                    'brand': item.get('brand_name', ''),
+                    'subject': item.get('subject_name', ''),
+                    'category': ''
+                }
+
+        # Добавление товаров в БД
+        for product in products_map.values():
+            try:
+                self.db.add_product(
+                    nm_id=product['nm_id'],
+                    article=product['article'],
+                    name=product['name'],
+                    brand=product.get('brand'),
+                    subject=product.get('subject'),
+                    category=product.get('category')
+                )
+            except Exception as e:
+                self.logger.warning(f"Не удалось добавить товар {product['nm_id']}: {e}")
+
+        self.logger.debug(f"Синхронизировано {len(products_map)} товаров из финансового отчёта")
 
     def update_product_settings(self, products_config: List[Dict]):
         """

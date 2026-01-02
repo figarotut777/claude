@@ -347,12 +347,16 @@ class AnalyticsService:
 
         return products_list[:limit]
 
-    def get_dashboard_data(self, period: str = 'today') -> Dict:
+    def get_dashboard_data(self, period: str = 'today',
+                          custom_start: str = None,
+                          custom_end: str = None) -> Dict:
         """
         Получение всех данных для дашборда
 
         Args:
             period: Период для отображения
+            custom_start: Начало кастомного периода
+            custom_end: Конец кастомного периода
 
         Returns:
             Полный набор данных для дашборда
@@ -360,7 +364,11 @@ class AnalyticsService:
         self.logger.info(f"Генерация данных дашборда за период: {period}")
 
         # Основные метрики
-        metrics = self.calculate_metrics(period=period)
+        metrics = self.calculate_metrics(
+            period=period,
+            custom_start=custom_start,
+            custom_end=custom_end
+        )
 
         # Топ товаров
         top_products = self.get_top_products(period=period, limit=5)

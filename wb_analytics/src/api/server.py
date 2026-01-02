@@ -70,15 +70,19 @@ def get_dashboard_data():
 
         logger.info(f"Запрос данных дашборда: period={period}")
 
+        # Получение данных дашборда с учётом кастомного периода
         if period == 'custom':
             if not custom_start or not custom_end:
                 return jsonify({
                     'error': 'Для custom периода нужны параметры start и end'
                 }), 400
 
-            data = analytics_service.get_dashboard_data(period=period)
-        else:
-            data = analytics_service.get_dashboard_data(period=period)
+        # Вызов с параметрами для всех случаев
+        data = analytics_service.get_dashboard_data(
+            period=period,
+            custom_start=custom_start,
+            custom_end=custom_end
+        )
 
         return jsonify(data)
 
