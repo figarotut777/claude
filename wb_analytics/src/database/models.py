@@ -11,6 +11,25 @@ from contextlib import contextmanager
 from pathlib import Path
 
 
+def generate_wb_image_url(nm_id: int, size: str = "c516x688") -> str:
+    """
+    Генерация URL изображения товара Wildberries
+
+    Args:
+        nm_id: Артикул товара WB
+        size: Размер изображения (tm, big, c246x328, c516x688)
+
+    Returns:
+        URL изображения
+    """
+    vol = nm_id // 100000
+    part = nm_id // 1000
+    basket = 1 + vol // 144
+    basket_str = f"{basket:02d}"
+
+    return f"https://basket-{basket_str}.wbbasket.ru/vol{vol}/part{part}/{nm_id}/images/{size}/1.jpg"
+
+
 class DatabaseManager:
     """Менеджер для работы с SQLite базой данных"""
 
@@ -61,10 +80,18 @@ class DatabaseManager:
                     category TEXT,
                     cost_price REAL DEFAULT 0,
                     wb_commission_percent REAL DEFAULT 15,
+                    image_url TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+
+            # Миграция: добавление поля image_url для существующих БД
+            try:
+                cursor.execute("ALTER TABLE products ADD COLUMN image_url TEXT")
+            except sqlite3.OperationalError:
+                # Поле уже существует
+                pass
 
             # Таблица продаж (снимки данных каждый час)
             cursor.execute("""
@@ -252,12 +279,15 @@ class DatabaseManager:
         Returns:
             ID записи в БД
         """
+        # Генерация URL изображения
+        image_url = generate_wb_image_url(nm_id, size="tm")  # thumbnail
+
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO products (nm_id, article, name, brand, subject, category,
-                                    cost_price, wb_commission_percent, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                                    cost_price, wb_commission_percent, image_url, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(nm_id) DO UPDATE SET
                     article = excluded.article,
                     name = excluded.name,
@@ -266,8 +296,9 @@ class DatabaseManager:
                     category = excluded.category,
                     cost_price = excluded.cost_price,
                     wb_commission_percent = excluded.wb_commission_percent,
+                    image_url = excluded.image_url,
                     updated_at = CURRENT_TIMESTAMP
-            """, (nm_id, article, name, brand, subject, category, cost_price, wb_commission))
+            """, (nm_id, article, name, brand, subject, category, cost_price, wb_commission, image_url))
 
             return cursor.lastrowid
 

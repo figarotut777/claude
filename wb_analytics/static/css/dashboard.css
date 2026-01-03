@@ -469,3 +469,20 @@ body {
     background: #fee2e2;
     color: #991b1b;
 }
+
+/* Стили для фотографий товаров */
+.product-thumbnail {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s ease;
+}
+
+.product-thumbnail:hover {
+    transform: scale(1.5);
+    z-index: 10;
+    box-shadow: var(--shadow-lg);
+    cursor: zoom-in;
+}

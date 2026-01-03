@@ -40,11 +40,13 @@ class AnalyticsService:
         Returns:
             Кортеж (start_date, end_date) в ISO формате
         """
-        now = datetime.utcnow()
+        # ИСПРАВЛЕНО: используем локальное время вместо UTC
+        now = datetime.now()
 
         if period == 'today':
+            # Для "сегодня" берём начало дня и текущий момент
             start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            end_date = now
+            end_date = now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
         elif period == 'week':
             start_date = now - timedelta(days=7)
@@ -312,8 +314,8 @@ class AnalyticsService:
             nm_id = product['nm_id']
 
             # Получение продаж за последние 30 дней
-            start_date = (datetime.utcnow() - timedelta(days=30)).isoformat()
-            end_date = datetime.utcnow().isoformat()
+            start_date = (datetime.now() - timedelta(days=30)).isoformat()
+            end_date = datetime.now().isoformat()
 
             sales = self.db.get_sales_for_period(start_date, end_date, nm_id)
 
@@ -447,7 +449,7 @@ class AnalyticsService:
                 'items_count': len(stocks)
             },
             'sync_status': sync_status,
-            'generated_at': datetime.utcnow().isoformat()
+            'generated_at': datetime.now().isoformat()
         }
 
         return dashboard_data
