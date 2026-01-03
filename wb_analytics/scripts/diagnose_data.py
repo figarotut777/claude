@@ -44,7 +44,7 @@ print(f"   Всего записей: {total_sales}")
 
 if total_sales > 0:
     cursor.execute("""
-        SELECT date, nm_id, quantity, total_price, commission
+        SELECT date, nm_id, total_price, for_pay
         FROM sales
         ORDER BY date DESC
         LIMIT 5
@@ -52,7 +52,7 @@ if total_sales > 0:
     sales = cursor.fetchall()
     print("   Последние 5 продаж:")
     for s in sales:
-        print(f"   - {s['date']}: nm_id={s['nm_id']}, qty={s['quantity']}, price={s['total_price']}, comm={s['commission']}")
+        print(f"   - {s['date']}: nm_id={s['nm_id']}, price={s['total_price']}, to_pay={s['for_pay']}")
 
     # Статистика по датам
     cursor.execute("""
@@ -77,7 +77,7 @@ print(f"   Всего записей: {total_orders}")
 
 if total_orders > 0:
     cursor.execute("""
-        SELECT date, nm_id, quantity, total_price
+        SELECT date, nm_id, total_price, is_cancel
         FROM orders
         ORDER BY date DESC
         LIMIT 5
@@ -85,7 +85,8 @@ if total_orders > 0:
     orders = cursor.fetchall()
     print("   Последние 5 заказов:")
     for o in orders:
-        print(f"   - {o['date']}: nm_id={o['nm_id']}, qty={o['quantity']}, price={o['total_price']}")
+        cancel_status = "(отменён)" if o['is_cancel'] else ""
+        print(f"   - {o['date']}: nm_id={o['nm_id']}, price={o['total_price']} {cancel_status}")
 
 # 4. Финансовый отчёт
 print("\n4. ФИНАНСОВЫЙ ОТЧЁТ (financial_report):")

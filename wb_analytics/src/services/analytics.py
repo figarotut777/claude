@@ -330,6 +330,7 @@ class AnalyticsService:
                 'article': product['article'],
                 'name': product['name'],
                 'brand': product['brand'],
+                'image_url': product.get('image_url', ''),
                 'sales_qty_30d': total_sales_qty,
                 'revenue_30d': round(total_revenue, 2),
                 'stock_qty': stock_qty,
