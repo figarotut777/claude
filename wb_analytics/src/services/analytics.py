@@ -416,9 +416,9 @@ class AnalyticsService:
         stocks = self.db.get_latest_stocks()
 
         # Статистика по остаткам
-        total_stock_qty = sum(stock.get('quantity', 0) for stock in stocks)
+        total_stock_qty = sum(stock.get('quantity', 0) or 0 for stock in stocks)
         total_stock_value = sum(
-            stock.get('quantity', 0) * stock.get('price', 0)
+            (stock.get('quantity') or 0) * (stock.get('price') or 0)
             for stock in stocks
         )
 

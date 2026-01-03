@@ -2,7 +2,7 @@
 
 // Конфигурация
 const API_BASE_URL = '';
-let currentPeriod = 'today';
+let currentPeriod = 'month'; // Изменено с 'today' на 'month' для отображения всех данных
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
@@ -140,6 +140,9 @@ function updateMetrics(metrics) {
     const profit = metrics.profit || {};
     const expenses = metrics.expenses || {};
     const trends = metrics.trends || {};
+
+    // Баланс WB (к выплате)
+    document.getElementById('wbBalance').textContent = formatCurrency(sales.to_pay_from_wb || 0);
 
     // Продажи (штуки)
     document.getElementById('salesQty').textContent = formatNumber(sales.quantity || 0);
