@@ -112,7 +112,8 @@ def main():
         print("✓ Подключение к API успешно")
 
         # Получение количества дней для загрузки
-        days_back = int(os.getenv('INITIAL_SYNC_DAYS', 30))
+        # По умолчанию 365 дней (максимальная история WB API с 29.01.2024)
+        days_back = int(os.getenv('INITIAL_SYNC_DAYS', 365))
 
         print(f"\n{'='*70}")
         print(f"Запуск полной синхронизации данных за последние {days_back} дней")

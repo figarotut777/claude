@@ -33,7 +33,7 @@ class AnalyticsService:
         Получение дат начала и конца периода
 
         Args:
-            period: Тип периода (today, week, month, custom)
+            period: Тип периода (today, week, month, all, custom)
             custom_start: Начальная дата для custom периода (ISO формат)
             custom_end: Конечная дата для custom периода (ISO формат)
 
@@ -52,6 +52,11 @@ class AnalyticsService:
 
         elif period == 'month':
             start_date = now - timedelta(days=30)
+            end_date = now
+
+        elif period == 'all':
+            # За всё время - с момента начала данных WB API (29.01.2024)
+            start_date = datetime(2024, 1, 29)
             end_date = now
 
         elif period == 'custom':
@@ -105,7 +110,7 @@ class AnalyticsService:
         # Расчёт метрик из ФИНАНСОВОГО ОТЧЁТА WB (самые точные данные!)
         total_sales_qty = 0
         total_sales_revenue = 0  # Выручка до вычетов
-        total_to_pay = 0  # К выплате продавцу (после ВСЕХ расходов WB)
+        total_to_pay = 0  # К выплате продавцу (после ВСЕХ расходов WB) - БАЛАНС
         total_commission = 0  # Комиссия WB
         total_logistics = 0  # Логистика (доставка + возврат)
         total_storage = 0  # Хранение
@@ -114,35 +119,39 @@ class AnalyticsService:
 
         for item in financial_report:
             qty = item.get('quantity', 0)
+            doc_type = item.get('doc_type_name', '')
 
-            # Только продажи (не возвраты)
-            if item.get('doc_type_name') == 'Продажа':
+            # ИСПРАВЛЕНО: Обрабатываем ВСЕ записи, не только "Продажа"!
+            # Расходы (хранение, штрафы) могут иметь пустой doc_type_name
+
+            # К выплате от WB (может быть отрицательным для расходов!)
+            to_pay = item.get('ppvz_for_pay', 0) or 0
+            total_to_pay += to_pay
+
+            # Хранение (ВСЕ записи, включая операции "Хранение")
+            storage = item.get('storage_fee', 0) or 0
+            total_storage += storage
+
+            # Штрафы (ВСЕ записи)
+            penalty = item.get('penalty', 0) or 0
+            total_penalties += penalty
+
+            # Логистика (ВСЕ записи)
+            delivery = item.get('delivery_rub', 0) or 0
+            return_amount = item.get('return_amount', 0) or 0
+            total_logistics += (delivery + return_amount)
+
+            # Только для продаж: считаем количество, выручку, комиссию, себестоимость
+            if doc_type == 'Продажа':
                 total_sales_qty += qty
 
                 # Выручка (цена со скидкой)
                 retail_amount = item.get('retail_amount', 0) or 0
                 total_sales_revenue += retail_amount
 
-                # К выплате продавцу (уже после ВСЕХ вычетов WB)
-                to_pay = item.get('ppvz_for_pay', 0) or 0
-                total_to_pay += to_pay
-
                 # Комиссия WB
                 commission = item.get('ppvz_sales_commission', 0) or 0
                 total_commission += commission
-
-                # Логистика
-                delivery = item.get('delivery_rub', 0) or 0
-                return_amount = item.get('return_amount', 0) or 0
-                total_logistics += (delivery + return_amount)
-
-                # Хранение
-                storage = item.get('storage_fee', 0) or 0
-                total_storage += storage
-
-                # Штрафы
-                penalty = item.get('penalty', 0) or 0
-                total_penalties += penalty
 
                 # Себестоимость из настроек товара
                 product_nm_id = item.get('nm_id')
