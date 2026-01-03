@@ -164,20 +164,22 @@ class WildberriesAPIClient:
     def get_stocks(self, date_from: str = None) -> List[Dict]:
         """
         Получение данных об остатках товаров на складах WB
+        ВАЖНО: API stocks не поддерживает параметр dateFrom!
+        Возвращает текущие остатки (обновляется каждые 30 минут)
 
         Args:
-            date_from: Дата начала (опционально, формат RFC3339)
+            date_from: УСТАРЕЛ - игнорируется (оставлен для совместимости)
 
         Returns:
             Список остатков
         """
         url = f"{self.BASE_URL}/api/v1/supplier/stocks"
+
+        # ИСПРАВЛЕНО: убрали параметры - API stocks не принимает dateFrom
+        # Передача dateFrom вызывает 400 Bad Request
         params = {}
 
-        if date_from:
-            params['dateFrom'] = date_from
-
-        self.logger.info("Запрос данных об остатках")
+        self.logger.info("Запрос данных об остатках (текущее состояние)")
 
         response = self._make_request('GET', url, params=params)
 
@@ -216,17 +218,29 @@ class WildberriesAPIClient:
                                     limit: int = 100000, rrdid: int = 0) -> List[Dict]:
         """
         Получение детализированного отчета о продажах за период
+        ВАЖНО: С января 2025 используется API v5 (было v1)
 
         Args:
-            date_from: Дата начала (RFC3339)
-            date_to: Дата окончания (RFC3339)
+            date_from: Дата начала (RFC3339, datetime разрешен)
+            date_to: Дата окончания (только дата, без времени!)
             limit: Максимальное количество записей
             rrdid: Уникальный идентификатор строки отчета (для пагинации)
 
         Returns:
             Список детальных данных
         """
-        url = f"{self.BASE_URL}/api/v1/supplier/reportDetailByPeriod"
+        # ИСПРАВЛЕНО: обновлен эндпоинт с v1 на v5 (актуально для 2025)
+        url = f"{self.BASE_URL}/api/v5/supplier/reportDetailByPeriod"
+
+        # Форматирование дат согласно требованиям WB API v5:
+        # dateFrom - может быть datetime, dateTo - только дата
+        try:
+            # Убираем время из dateTo, оставляем только дату
+            if 'T' in date_to:
+                date_to = date_to.split('T')[0]
+        except Exception as e:
+            self.logger.warning(f"Ошибка форматирования dateTo: {e}")
+
         params = {
             'dateFrom': date_from,
             'dateTo': date_to,
@@ -234,7 +248,7 @@ class WildberriesAPIClient:
             'rrdid': rrdid
         }
 
-        self.logger.info(f"Запрос детального отчета с {date_from} по {date_to}")
+        self.logger.info(f"Запрос детального отчета v5 с {date_from} по {date_to}")
 
         response = self._make_request('GET', url, params=params)
 
