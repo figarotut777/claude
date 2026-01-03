@@ -19,7 +19,7 @@ class WildberriesAPIClient:
     BASE_URL = "https://statistics-api.wildberries.ru"
     CONTENT_URL = "https://suppliers-api.wildberries.ru"
 
-    def __init__(self, api_key: str, timeout: int = 30, max_retries: int = 3):
+    def __init__(self, api_key: str, timeout: int = 120, max_retries: int = 3):
         """
         Инициализация клиента WB API
 
