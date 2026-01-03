@@ -219,6 +219,7 @@ class WildberriesAPIClient:
         """
         Получение детализированного отчета о продажах за период
         ВАЖНО: С января 2025 используется API v5 (было v1)
+        ОГРАНИЧЕНИЕ: WB API позволяет максимум 8 дней в одном запросе
 
         Args:
             date_from: Дата начала (RFC3339, datetime разрешен)
@@ -259,6 +260,67 @@ class WildberriesAPIClient:
 
         return []
 
+    def get_report_detail_by_period_chunked(self, date_from: str, date_to: str) -> List[Dict]:
+        """
+        Получение детализированного отчета за большой период
+        Автоматически разбивает на чанки по 7 дней (WB API лимит 8 дней)
+
+        Args:
+            date_from: Дата начала (RFC3339)
+            date_to: Дата окончания (RFC3339или дата)
+
+        Returns:
+            Список всех записей за весь период
+        """
+        # Парсинг дат
+        start_dt = datetime.fromisoformat(date_from.replace('Z', '+00:00'))
+        if isinstance(start_dt.tzinfo, type(None)):
+            start_dt = start_dt.replace(tzinfo=None)
+        else:
+            start_dt = start_dt.replace(tzinfo=None)
+
+        try:
+            end_dt = datetime.fromisoformat(date_to.replace('Z', '+00:00'))
+            if isinstance(end_dt.tzinfo, type(None)):
+                end_dt = end_dt.replace(tzinfo=None)
+            else:
+                end_dt = end_dt.replace(tzinfo=None)
+        except:
+            # Если только дата
+            end_dt = datetime.strptime(date_to.split('T')[0], '%Y-%m-%d')
+
+        all_data = []
+        chunk_days = 7  # WB API лимит 8 дней, берем 7 для надежности
+        current_start = start_dt
+
+        self.logger.info(f"Запрос финансового отчета за период {start_dt.date()} - {end_dt.date()} (по чанкам {chunk_days} дней)")
+
+        while current_start < end_dt:
+            current_end = min(current_start + timedelta(days=chunk_days), end_dt)
+
+            # Форматирование дат
+            chunk_from = current_start.isoformat() + 'Z'
+            chunk_to = current_end.strftime('%Y-%m-%d')
+
+            self.logger.info(f"  Загрузка чанка: {current_start.date()} - {current_end.date()}")
+
+            # Запрос данных
+            chunk_data = self.get_report_detail_by_period(
+                date_from=chunk_from,
+                date_to=chunk_to
+            )
+
+            if chunk_data:
+                all_data.extend(chunk_data)
+                self.logger.info(f"  Получено {len(chunk_data)} записей")
+
+            # Переход к следующему чанку
+            current_start = current_end + timedelta(days=1)
+            time.sleep(0.5)  # Задержка между запросами
+
+        self.logger.info(f"Всего загружено {len(all_data)} записей финансового отчета")
+        return all_data
+
     def get_all_data_for_period(self, days_back: int = 7) -> Dict[str, List[Dict]]:
         """
         Получение всех данных (продажи, заказы, остатки, финансовый отчёт) за указанный период
@@ -295,7 +357,8 @@ class WildberriesAPIClient:
         time.sleep(1)
 
         # Получение детального финансового отчёта (ГЛАВНОЕ для расчёта прибыли!)
-        result['financial_report'] = self.get_report_detail_by_period(
+        # Используем chunked версию для обхода лимита 8 дней
+        result['financial_report'] = self.get_report_detail_by_period_chunked(
             date_from=date_from,
             date_to=date_to
         )

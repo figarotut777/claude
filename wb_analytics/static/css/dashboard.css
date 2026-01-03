@@ -474,15 +474,17 @@ body {
 .product-thumbnail {
     width: 60px;
     height: 60px;
+    min-width: 60px;
+    min-height: 60px;
     object-fit: cover;
     border-radius: 6px;
     border: 1px solid var(--border-color);
-    transition: transform 0.2s ease;
+    background: var(--bg-color);
+    display: block;
 }
 
+/* Убираем hover-эффект чтобы не мерцало */
 .product-thumbnail:hover {
-    transform: scale(1.5);
-    z-index: 10;
-    box-shadow: var(--shadow-lg);
-    cursor: zoom-in;
+    opacity: 0.9;
+    cursor: pointer;
 }

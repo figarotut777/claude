@@ -31,10 +31,10 @@ print("\n1. ТОВАРЫ (products):")
 cursor.execute("SELECT COUNT(*) as cnt FROM products")
 print(f"   Всего товаров: {cursor.fetchone()['cnt']}")
 
-cursor.execute("SELECT nm_id, subject_name, brand_name FROM products LIMIT 5")
+cursor.execute("SELECT nm_id, subject, brand FROM products LIMIT 5")
 products = cursor.fetchall()
 for p in products:
-    print(f"   - {p['nm_id']}: {p['brand_name']} - {p['subject_name']}")
+    print(f"   - {p['nm_id']}: {p['brand']} - {p['subject']}")
 
 # 2. Продажи
 print("\n2. ПРОДАЖИ (sales):")
