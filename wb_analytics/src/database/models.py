@@ -8,6 +8,7 @@ import logging
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from contextlib import contextmanager
+from pathlib import Path
 
 
 class DatabaseManager:
@@ -41,6 +42,10 @@ class DatabaseManager:
 
     def _init_database(self):
         """Инициализация таблиц базы данных"""
+        # Создаём родительскую директорию, если её нет
+        db_dir = Path(self.db_path).parent
+        db_dir.mkdir(parents=True, exist_ok=True)
+
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
