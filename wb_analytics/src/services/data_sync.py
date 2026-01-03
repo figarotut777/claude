@@ -274,12 +274,14 @@ class DataSyncService:
         for item in report:
             nm_id = item.get('nm_id')
             if nm_id and nm_id not in products_map:
+                # ИСПРАВЛЕНО: артикул как название (subject_name = категория, не название)
+                article = item.get('sa_name', '')
                 products_map[nm_id] = {
                     'nm_id': nm_id,
-                    'article': item.get('sa_name', ''),
-                    'name': item.get('subject_name', f'Товар {nm_id}'),
+                    'article': article,
+                    'name': article or f'Товар {nm_id}',  # Артикул как название
                     'brand': item.get('brand_name', ''),
-                    'subject': item.get('subject_name', ''),
+                    'subject': item.get('subject_name', ''),  # Категория
                     'category': ''
                 }
 

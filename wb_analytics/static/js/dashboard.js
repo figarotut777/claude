@@ -141,9 +141,6 @@ function updateMetrics(metrics) {
     const expenses = metrics.expenses || {};
     const trends = metrics.trends || {};
 
-    // Баланс WB (к выплате)
-    document.getElementById('wbBalance').textContent = formatCurrency(sales.to_pay_from_wb || 0);
-
     // Продажи (штуки)
     document.getElementById('salesQty').textContent = formatNumber(sales.quantity || 0);
     updateTrendIndicator('salesQtyChange', trends.quantity_change_percent);
