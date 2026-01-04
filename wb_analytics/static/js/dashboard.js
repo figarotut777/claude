@@ -220,24 +220,28 @@ function updateAllProducts(products) {
     const tbody = document.querySelector('#allProductsTable tbody');
 
     if (!products || products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="loading">Нет данных</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="loading">Нет данных</td></tr>';
         return;
     }
 
     tbody.innerHTML = products.map(product => {
-        const imageUrl = product.image_url || `https://via.placeholder.com/100x100?text=No+Image`;
         return `
         <tr>
-            <td><img src="${imageUrl}" alt="${escapeHtml(product.name || '')}" class="product-thumbnail" onerror="this.src='https://via.placeholder.com/100x100?text=No+Image'"></td>
-            <td>${escapeHtml(product.name || '-')}</td>
-            <td>${escapeHtml(product.article || '-')}</td>
+            <td><strong>${escapeHtml(product.article || product.name || '-')}</strong></td>
             <td>${escapeHtml(product.brand || '-')}</td>
-            <td>${product.nm_id || '-'}</td>
+            <td>${escapeHtml(product.subject || '-')}</td>
+            <td><small>${product.nm_id || '-'}</small></td>
             <td>${formatNumber(product.sales_qty_30d || 0)}</td>
             <td><strong>${formatCurrency(product.revenue_30d || 0)}</strong></td>
             <td>${formatNumber(product.stock_qty || 0)}</td>
-            <td>${formatCurrency(product.cost_price || 0)}</td>
-            <td>${formatPercent(product.wb_commission || 0)}</td>
+            <td>
+                <span class="editable-cost" data-nm-id="${product.nm_id}">
+                    ${formatCurrency(product.cost_price || 0)}
+                </span>
+            </td>
+            <td>
+                <button class="btn-edit-cost" onclick="editProductCost(${product.nm_id}, '${escapeHtml(product.article || '')}')">✏️</button>
+            </td>
         </tr>
         `;
     }).join('');
