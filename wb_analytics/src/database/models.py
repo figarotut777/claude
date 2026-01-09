@@ -258,6 +258,44 @@ class DatabaseManager:
                 )
             """)
 
+            # Таблица истории себестоимости по SKU
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS sku_cost_price (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nm_id INTEGER NOT NULL,
+                    cost_price REAL NOT NULL,
+                    valid_from DATE NOT NULL,
+                    valid_to DATE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (nm_id) REFERENCES products (nm_id)
+                )
+            """)
+
+            # Индекс для быстрого поиска актуальной цены
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_sku_cost_price_nm_valid
+                ON sku_cost_price(nm_id, valid_from, valid_to)
+            """)
+
+            # Таблица глобальных настроек приложения
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS settings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tax_mode TEXT DEFAULT 'usn',
+                    tax_rate REAL DEFAULT 0.06,
+                    exclude_self_buyout BOOLEAN DEFAULT 0,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            # Создаём дефолтную настройку если таблица пустая
+            cursor.execute("SELECT COUNT(*) as cnt FROM settings")
+            if cursor.fetchone()['cnt'] == 0:
+                cursor.execute("""
+                    INSERT INTO settings (tax_mode, tax_rate, exclude_self_buyout)
+                    VALUES ('usn', 0.06, 0)
+                """)
+
             self.logger.info("База данных инициализирована успешно")
 
     def add_product(self, nm_id: int, article: str, name: str,
@@ -694,6 +732,179 @@ class DatabaseManager:
             cursor.execute("SELECT value FROM metadata WHERE key = ?", (key,))
             row = cursor.fetchone()
             return row['value'] if row else None
+
+    def get_settings(self) -> Dict:
+        """Получение глобальных настроек"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM settings LIMIT 1")
+            row = cursor.fetchone()
+            return dict(row) if row else {
+                'tax_mode': 'usn',
+                'tax_rate': 0.06,
+                'exclude_self_buyout': 0
+            }
+
+    def update_settings(self, tax_mode: str = None, tax_rate: float = None,
+                       exclude_self_buyout: bool = None) -> bool:
+        """
+        Обновление глобальных настроек
+
+        Args:
+            tax_mode: Режим налогообложения ('usn', 'osn')
+            tax_rate: Ставка налога (0.04 или 0.06 для УСН)
+            exclude_self_buyout: Исключать ли самовыкупы
+
+        Returns:
+            True если обновление прошло успешно
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            updates = []
+            params = []
+
+            if tax_mode is not None:
+                updates.append("tax_mode = ?")
+                params.append(tax_mode)
+
+            if tax_rate is not None:
+                updates.append("tax_rate = ?")
+                params.append(tax_rate)
+
+            if exclude_self_buyout is not None:
+                updates.append("exclude_self_buyout = ?")
+                params.append(1 if exclude_self_buyout else 0)
+
+            if not updates:
+                return False
+
+            updates.append("updated_at = CURRENT_TIMESTAMP")
+
+            query = f"UPDATE settings SET {', '.join(updates)}"
+            cursor.execute(query, params)
+
+            return cursor.rowcount > 0
+
+    def add_cost_price(self, nm_id: int, cost_price: float, valid_from: str,
+                      valid_to: str = None) -> int:
+        """
+        Добавление исторической себестоимости для товара
+
+        Args:
+            nm_id: ID товара
+            cost_price: Себестоимость
+            valid_from: Дата начала действия цены (YYYY-MM-DD)
+            valid_to: Дата окончания действия цены (опционально)
+
+        Returns:
+            ID добавленной записи
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO sku_cost_price (nm_id, cost_price, valid_from, valid_to)
+                VALUES (?, ?, ?, ?)
+            """, (nm_id, cost_price, valid_from, valid_to))
+
+            return cursor.lastrowid
+
+    def get_cost_price_at_date(self, nm_id: int, date: str) -> Optional[float]:
+        """
+        Получение себестоимости товара на конкретную дату
+
+        Args:
+            nm_id: ID товара
+            date: Дата в формате YYYY-MM-DD
+
+        Returns:
+            Себестоимость или None если не найдена
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT cost_price FROM sku_cost_price
+                WHERE nm_id = ?
+                  AND valid_from <= ?
+                  AND (valid_to IS NULL OR valid_to >= ?)
+                ORDER BY valid_from DESC
+                LIMIT 1
+            """, (nm_id, date, date))
+
+            row = cursor.fetchone()
+            return row['cost_price'] if row else None
+
+    def get_current_cost_price(self, nm_id: int) -> Optional[float]:
+        """
+        Получение текущей себестоимости товара
+
+        Args:
+            nm_id: ID товара
+
+        Returns:
+            Текущая себестоимость или cost_price из products
+        """
+        # Сначала ищем в истории
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT cost_price FROM sku_cost_price
+                WHERE nm_id = ?
+                  AND valid_from <= DATE('now')
+                  AND (valid_to IS NULL OR valid_to >= DATE('now'))
+                ORDER BY valid_from DESC
+                LIMIT 1
+            """, (nm_id,))
+
+            row = cursor.fetchone()
+            if row:
+                return row['cost_price']
+
+            # Если в истории нет, берём из products
+            cursor.execute("SELECT cost_price FROM products WHERE nm_id = ?", (nm_id,))
+            row = cursor.fetchone()
+            return row['cost_price'] if row else None
+
+    def update_cost_price(self, nm_id: int, cost_price: float, valid_from: str = None) -> int:
+        """
+        Обновление себестоимости товара (закрывает предыдущую запись и создаёт новую)
+
+        Args:
+            nm_id: ID товара
+            cost_price: Новая себестоимость
+            valid_from: Дата начала действия (по умолчанию - сегодня)
+
+        Returns:
+            ID новой записи
+        """
+        if valid_from is None:
+            from datetime import datetime
+            valid_from = datetime.now().strftime('%Y-%m-%d')
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Закрываем предыдущую активную запись
+            cursor.execute("""
+                UPDATE sku_cost_price
+                SET valid_to = DATE(?, '-1 day')
+                WHERE nm_id = ? AND valid_to IS NULL
+            """, (valid_from, nm_id))
+
+            # Создаём новую запись
+            cursor.execute("""
+                INSERT INTO sku_cost_price (nm_id, cost_price, valid_from)
+                VALUES (?, ?, ?)
+            """, (nm_id, cost_price, valid_from))
+
+            # Обновляем также в products для обратной совместимости
+            cursor.execute("""
+                UPDATE products
+                SET cost_price = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE nm_id = ?
+            """, (cost_price, nm_id))
+
+            return cursor.lastrowid
 
     def clean_old_data(self, days_to_keep: int = 90):
         """

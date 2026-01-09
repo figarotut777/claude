@@ -280,6 +280,108 @@ def get_sync_status():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/products/<int:nm_id>/cost-price', methods=['PATCH'])
+def update_product_cost_price(nm_id):
+    """
+    Обновление себестоимости товара с историей (раздел 15.4.2 ТЗ)
+
+    Body:
+        {
+            "cost_price": 500.0,
+            "valid_from": "2025-01-09" (опционально, по умолчанию сегодня)
+        }
+    """
+    try:
+        data = request.get_json()
+
+        if not data or 'cost_price' not in data:
+            return jsonify({'error': 'Не указана себестоимость (cost_price)'}), 400
+
+        cost_price = data.get('cost_price')
+        valid_from = data.get('valid_from')  # Опционально
+
+        # Проверка что товар существует
+        product = db_manager.get_product_by_nm_id(nm_id)
+        if not product:
+            return jsonify({'error': 'Товар не найден'}), 404
+
+        logger.info(f"Обновление себестоимости товара {nm_id}: {cost_price} ₽ с {valid_from or 'сегодня'}")
+
+        # Обновление через историческую таблицу
+        record_id = db_manager.update_cost_price(
+            nm_id=nm_id,
+            cost_price=cost_price,
+            valid_from=valid_from
+        )
+
+        return jsonify({
+            'success': True,
+            'message': 'Себестоимость обновлена',
+            'record_id': record_id,
+            'nm_id': nm_id,
+            'cost_price': cost_price,
+            'valid_from': valid_from
+        })
+
+    except Exception as e:
+        logger.error(f"Ошибка при обновлении себестоимости товара {nm_id}: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/settings', methods=['GET', 'PATCH'])
+def manage_settings():
+    """
+    Получение или обновление глобальных настроек (раздел 15.1 ТЗ)
+
+    GET: возвращает текущие настройки
+    PATCH: обновляет настройки
+
+    Body (для PATCH):
+        {
+            "tax_mode": "usn",
+            "tax_rate": 0.06,
+            "exclude_self_buyout": false
+        }
+    """
+    try:
+        if request.method == 'GET':
+            # Получение настроек
+            settings = db_manager.get_settings()
+            return jsonify(settings)
+
+        elif request.method == 'PATCH':
+            # Обновление настроек
+            data = request.get_json()
+
+            if not data:
+                return jsonify({'error': 'Нет данных для обновления'}), 400
+
+            tax_mode = data.get('tax_mode')
+            tax_rate = data.get('tax_rate')
+            exclude_self_buyout = data.get('exclude_self_buyout')
+
+            logger.info(f"Обновление настроек: tax_mode={tax_mode}, tax_rate={tax_rate}")
+
+            success = db_manager.update_settings(
+                tax_mode=tax_mode,
+                tax_rate=tax_rate,
+                exclude_self_buyout=exclude_self_buyout
+            )
+
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'Настройки обновлены',
+                    'settings': db_manager.get_settings()
+                })
+            else:
+                return jsonify({'error': 'Не удалось обновить настройки'}), 500
+
+    except Exception as e:
+        logger.error(f"Ошибка при работе с настройками: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
 @app.errorhandler(404)
 def not_found(error):
     """Обработчик ошибки 404"""

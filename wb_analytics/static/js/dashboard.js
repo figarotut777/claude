@@ -516,3 +516,101 @@ async function loadExpenses() {
         showError('Не удалось загрузить данные расходов');
     }
 }
+
+// ===========================================
+// НОВЫЕ ФУНКЦИИ ПО ТЗ РАЗДЕЛ 15
+// ===========================================
+
+// Обновление ставки налога (раздел 15.1)
+async function updateTaxRate(taxRate) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/settings`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ tax_rate: taxRate })
+        });
+
+        if (!response.ok) {
+            throw new Error('Не удалось обновить налоговую ставку');
+        }
+
+        console.log(`Налоговая ставка обновлена: ${taxRate * 100}%`);
+
+        // Перезагрузка дашборда с новой ставкой
+        loadDashboard();
+
+    } catch (error) {
+        console.error('Ошибка обновления налоговой ставки:', error);
+        alert('Ошибка обновления налоговой ставки');
+    }
+}
+
+// Открыть модальное окно редактирования себестоимости (раздел 15.4.2)
+function openEditCOGSModal(nmId, article, currentCostPrice) {
+    document.getElementById('modalNmId').textContent = nmId;
+    document.getElementById('modalArticle').textContent = article;
+    document.getElementById('modalCostPrice').value = currentCostPrice || '';
+    document.getElementById('modalValidFrom').value = ''; // Пусто = сегодня
+
+    document.getElementById('editCOGSModal').style.display = 'flex';
+}
+
+// Закрыть модальное окно
+function closeEditCOGSModal() {
+    document.getElementById('editCOGSModal').style.display = 'none';
+}
+
+// Сохранить себестоимость (раздел 15.4.2)
+async function saveCostPrice() {
+    const nmId = parseInt(document.getElementById('modalNmId').textContent);
+    const costPrice = parseFloat(document.getElementById('modalCostPrice').value);
+    const validFrom = document.getElementById('modalValidFrom').value || null;
+
+    if (isNaN(costPrice) || costPrice < 0) {
+        alert('Введите корректную себестоимость');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/products/${nmId}/cost-price`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                cost_price: costPrice,
+                valid_from: validFrom
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Не удалось обновить себестоимость');
+        }
+
+        const result = await response.json();
+        console.log('Себестоимость обновлена:', result);
+
+        alert(`Себестоимость обновлена: ${costPrice} ₽`);
+        closeEditCOGSModal();
+
+        // Перезагрузка дашборда
+        loadDashboard();
+
+    } catch (error) {
+        console.error('Ошибка сохранения себестоимости:', error);
+        alert(`Ошибка: ${error.message}`);
+    }
+}
+
+// Функция для кнопки "Редактировать COGS" в таблице
+function editProductCost(nmId, article, currentCostPrice) {
+    openEditCOGSModal(nmId, article, currentCostPrice);
+}
+
+// TODO: Обновить функцию updateMetrics для работы с новыми KPI cards (раздел 15.1)
+// TODO: Обновить функцию updateAllProducts для отображения новых колонок SKU table (раздел 15.4)
+// TODO: Добавить функции рендеринга Top Blocks (раздел 15.5)
+// TODO: Добавить функцию рендеринга Expense Breakdown (раздел 15.6)

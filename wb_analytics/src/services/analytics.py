@@ -77,16 +77,16 @@ class AnalyticsService:
                          custom_end: str = None,
                          nm_id: int = None) -> Dict:
         """
-        Расчёт метрик за период
+        Расчёт метрик за период (по Разделу 15.2 ТЗ)
 
         Args:
-            period: Период (today, week, month, custom)
+            period: Период (today, week, month, all, custom)
             custom_start: Начало custom периода
             custom_end: Конец custom периода
             nm_id: ID товара (если нужна статистика по одному товару)
 
         Returns:
-            Словарь с метриками
+            Словарь с метриками согласно ТЗ (Revenue Gross, Payout Net, Profit Net, ROI, Margin%, Tax)
         """
         self.logger.info(f"Расчёт метрик за период: {period}")
 
@@ -109,15 +109,24 @@ class AnalyticsService:
         # Создание мапы товаров для быстрого доступа
         products_map = {p['nm_id']: p for p in products if p}
 
+        # Получение настроек (налоги)
+        settings = self.db.get_settings()
+        tax_rate = settings.get('tax_rate', 0.06)
+
         # Расчёт метрик из ФИНАНСОВОГО ОТЧЁТА WB (самые точные данные!)
         total_sales_qty = 0
-        total_sales_revenue = 0  # Выручка до вычетов
-        total_to_pay = 0  # К выплате продавцу (после ВСЕХ расходов WB) - БАЛАНС
+        revenue_gross = 0  # Выручка валовая (retail_amount) - может быть N/A
+        payout_net = 0  # К выплате от WB (ppvz_for_pay) - ВСЕГДА есть
         total_commission = 0  # Комиссия WB
         total_logistics = 0  # Логистика (доставка + возврат)
         total_storage = 0  # Хранение
         total_penalties = 0  # Штрафы
-        total_cost = 0  # Себестоимость товаров
+        total_returns = 0  # Возвраты (отдельно от логистики)
+        total_ads = 0  # Реклама (пока 0, WB API не даёт)
+        total_other = 0  # Прочие расходы
+        total_cost = 0  # Себестоимость товаров (COGS)
+
+        gross_available = False  # Флаг: доступна ли Revenue Gross
 
         for item in financial_report:
             qty = item.get('quantity', 0)
@@ -128,45 +137,88 @@ class AnalyticsService:
 
             # К выплате от WB (может быть отрицательным для расходов!)
             to_pay = item.get('ppvz_for_pay', 0) or 0
-            total_to_pay += to_pay
+            payout_net += to_pay
 
             # Хранение (ВСЕ записи, включая операции "Хранение")
             storage = item.get('storage_fee', 0) or 0
-            total_storage += storage
+            total_storage += abs(storage)  # Хранение всегда положительное
 
             # Штрафы (ВСЕ записи)
             penalty = item.get('penalty', 0) or 0
-            total_penalties += penalty
+            total_penalties += abs(penalty)
 
             # Логистика (ВСЕ записи)
             delivery = item.get('delivery_rub', 0) or 0
+            total_logistics += abs(delivery)
+
+            # Возвраты (отдельно)
             return_amount = item.get('return_amount', 0) or 0
-            total_logistics += (delivery + return_amount)
+            total_returns += abs(return_amount)
 
             # Только для продаж: считаем количество, выручку, комиссию, себестоимость
             if doc_type == 'Продажа':
                 total_sales_qty += qty
 
-                # Выручка (цена со скидкой)
+                # Revenue Gross (retail_amount) - может отсутствовать!
                 retail_amount = item.get('retail_amount', 0) or 0
-                total_sales_revenue += retail_amount
+                if retail_amount > 0:
+                    revenue_gross += retail_amount
+                    gross_available = True
 
                 # Комиссия WB
                 commission = item.get('ppvz_sales_commission', 0) or 0
-                total_commission += commission
+                total_commission += abs(commission)
 
-                # Себестоимость из настроек товара
+                # Себестоимость из настроек товара или истории
                 product_nm_id = item.get('nm_id')
-                product = products_map.get(product_nm_id)
-                if product and qty > 0:
-                    cost_price = product.get('cost_price', 0) or 0
-                    total_cost += cost_price * qty
+                sale_date = item.get('rr_dt', '')[:10] if item.get('rr_dt') else None
 
-        # ЧИСТАЯ ПРИБЫЛЬ = К выплате от WB - Себестоимость
-        net_profit = total_to_pay - total_cost
+                if qty > 0 and product_nm_id:
+                    # Получаем себестоимость на дату продажи
+                    if sale_date:
+                        cost_price = self.db.get_cost_price_at_date(product_nm_id, sale_date)
+                    else:
+                        cost_price = None
 
-        # Выручка после комиссии WB (но до логистики/хранения)
-        revenue_after_commission = total_sales_revenue - total_commission
+                    # Если нет в истории, берём из products
+                    if cost_price is None:
+                        product = products_map.get(product_nm_id)
+                        cost_price = product.get('cost_price', 0) if product else 0
+
+                    total_cost += (cost_price or 0) * qty
+
+        # НАЛОГ (УСН) - рассчитывается от Revenue Gross
+        tax = 0
+        if gross_available and revenue_gross > 0:
+            tax = revenue_gross * tax_rate
+
+        # Total Expenses (ВСЕ расходы кроме COGS и налога)
+        total_expenses = total_commission + total_logistics + total_storage + total_penalties + total_returns + total_ads + total_other
+
+        # PROFIT NET (по формуле из ТЗ раздел 15.2)
+        # Profit Net = Revenue Gross – Commission – Logistics – Storage – Returns – Fines – Ads – COGS – Taxes – Other
+        # Если Revenue Gross недоступен, считаем от Payout Net
+        if gross_available:
+            profit_net = revenue_gross - total_commission - total_logistics - total_storage - total_penalties - total_returns - total_ads - total_cost - tax - total_other
+        else:
+            # Альтернативная формула: Payout Net - COGS - Tax
+            profit_net = payout_net - total_cost - tax
+
+        # ROI = Profit Net / COGS (N/A если COGS = 0)
+        if total_cost > 0:
+            roi = (profit_net / total_cost) * 100
+            roi_available = True
+        else:
+            roi = 0
+            roi_available = False
+
+        # Margin% = Profit Net / Revenue Gross (N/A если Gross недоступен)
+        if gross_available and revenue_gross > 0:
+            margin_percent = (profit_net / revenue_gross) * 100
+            margin_available = True
+        else:
+            margin_percent = 0
+            margin_available = False
 
         # Расчёт метрик по заказам
         total_orders = len(orders)
@@ -174,13 +226,10 @@ class AnalyticsService:
         active_orders = total_orders - cancelled_orders
 
         # Средний чек
-        avg_order_value = total_sales_revenue / total_sales_qty if total_sales_qty > 0 else 0
+        avg_order_value = revenue_gross / total_sales_qty if total_sales_qty > 0 and gross_available else 0
 
         # Конверсия (продажи / заказы)
         conversion_rate = (total_sales_qty / total_orders * 100) if total_orders > 0 else 0
-
-        # Рентабельность (прибыль / выручка)
-        roi = (net_profit / total_sales_revenue * 100) if total_sales_revenue > 0 else 0
 
         metrics = {
             'period': {
@@ -190,9 +239,9 @@ class AnalyticsService:
             },
             'sales': {
                 'quantity': total_sales_qty,
-                'revenue': round(total_sales_revenue, 2),
-                'revenue_after_commission': round(revenue_after_commission, 2),
-                'to_pay_from_wb': round(total_to_pay, 2),  # К выплате от WB
+                'revenue_gross': round(revenue_gross, 2) if gross_available else None,
+                'revenue_gross_available': gross_available,
+                'payout_net': round(payout_net, 2),
                 'avg_order_value': round(avg_order_value, 2)
             },
             'orders': {
@@ -202,18 +251,25 @@ class AnalyticsService:
                 'conversion_rate': round(conversion_rate, 2)
             },
             'expenses': {
-                'commission': round(total_commission, 2),  # Комиссия WB
-                'logistics': round(total_logistics, 2),  # Логистика
-                'storage': round(total_storage, 2),  # Хранение
-                'penalties': round(total_penalties, 2),  # Штрафы
-                'total_wb_expenses': round(total_commission + total_logistics + total_storage + total_penalties, 2),
-                'cost_of_goods': round(total_cost, 2)  # Себестоимость
+                'commission': round(total_commission, 2),
+                'logistics': round(total_logistics, 2),
+                'storage': round(total_storage, 2),
+                'penalties': round(total_penalties, 2),
+                'returns': round(total_returns, 2),
+                'ads': round(total_ads, 2),
+                'other': round(total_other, 2),
+                'total_expenses': round(total_expenses, 2),
+                'cogs': round(total_cost, 2)
             },
             'profit': {
-                'total_cost': round(total_cost, 2),
-                'net_profit': round(net_profit, 2),
-                'roi': round(roi, 2),
-                'margin_percent': round((net_profit / total_sales_revenue * 100) if total_sales_revenue > 0 else 0, 2)
+                'cogs': round(total_cost, 2),
+                'tax': round(tax, 2),
+                'tax_rate': tax_rate,
+                'profit_net': round(profit_net, 2),
+                'roi': round(roi, 2) if roi_available else None,
+                'roi_available': roi_available,
+                'margin_percent': round(margin_percent, 2) if margin_available else None,
+                'margin_available': margin_available
             }
         }
 
@@ -289,15 +345,20 @@ class AnalyticsService:
 
         return ((new_value - old_value) / old_value) * 100
 
-    def get_products_summary(self) -> List[Dict]:
+    def get_products_summary(self, period: str = 'month') -> List[Dict]:
         """
-        Получение сводки по всем товарам
+        Получение сводки по всем товарам с расчётом прибыли и статусов (по ТЗ раздел 15.4)
+
+        Args:
+            period: Период для расчёта метрик (today, week, month)
 
         Returns:
-            Список товаров с основными метриками
+            Список товаров с метриками: Profit Net, Revenue Gross, Margin%, ROI, статусы
         """
         products = self.db.get_products()
         stocks = self.db.get_latest_stocks()
+        settings = self.db.get_settings()
+        tax_rate = settings.get('tax_rate', 0.06)
 
         # Создание мапы остатков
         stocks_map = {}
@@ -307,39 +368,150 @@ class AnalyticsService:
                 stocks_map[nm_id] = 0
             stocks_map[nm_id] += stock.get('quantity', 0)
 
+        # Получение дат периода
+        start_date, end_date = self.get_period_dates(period)
+
         # Сводка по каждому товару
         summary = []
 
         for product in products:
             nm_id = product['nm_id']
 
-            # Получение продаж за последние 30 дней
-            start_date = (datetime.now() - timedelta(days=30)).isoformat()
-            end_date = datetime.now().isoformat()
+            # Получение финансового отчёта для товара
+            financial_report = self.db.get_financial_report_for_period(start_date, end_date, nm_id)
 
-            sales = self.db.get_sales_for_period(start_date, end_date, nm_id)
+            # Расчёт метрик аналогично calculate_metrics, но для отдельного товара
+            total_sales_qty = 0
+            revenue_gross = 0
+            payout_net = 0
+            total_commission = 0
+            total_logistics = 0
+            total_storage = 0
+            total_penalties = 0
+            total_returns = 0
+            total_ads = 0
+            total_other = 0
+            total_cost = 0
+            gross_available = False
 
-            total_sales_qty = len(sales)
-            total_revenue = sum(sale.get('forPay', 0) or 0 for sale in sales)
+            for item in financial_report:
+                qty = item.get('quantity', 0)
+                doc_type = item.get('doc_type_name', '')
+
+                # К выплате
+                to_pay = item.get('ppvz_for_pay', 0) or 0
+                payout_net += to_pay
+
+                # Расходы
+                total_storage += abs(item.get('storage_fee', 0) or 0)
+                total_penalties += abs(item.get('penalty', 0) or 0)
+                total_logistics += abs(item.get('delivery_rub', 0) or 0)
+                total_returns += abs(item.get('return_amount', 0) or 0)
+
+                # Продажи
+                if doc_type == 'Продажа':
+                    total_sales_qty += qty
+
+                    retail_amount = item.get('retail_amount', 0) or 0
+                    if retail_amount > 0:
+                        revenue_gross += retail_amount
+                        gross_available = True
+
+                    total_commission += abs(item.get('ppvz_sales_commission', 0) or 0)
+
+                    # Себестоимость
+                    sale_date = item.get('rr_dt', '')[:10] if item.get('rr_dt') else None
+                    if qty > 0:
+                        if sale_date:
+                            cost_price = self.db.get_cost_price_at_date(nm_id, sale_date)
+                        else:
+                            cost_price = None
+
+                        if cost_price is None:
+                            cost_price = product.get('cost_price', 0) or 0
+
+                        total_cost += cost_price * qty
+
+            # Налог
+            tax = revenue_gross * tax_rate if gross_available and revenue_gross > 0 else 0
+
+            # Total Expenses
+            total_expenses = total_commission + total_logistics + total_storage + total_penalties + total_returns + total_ads + total_other
+
+            # Profit Net
+            if gross_available:
+                profit_net = revenue_gross - total_expenses - total_cost - tax
+            else:
+                profit_net = payout_net - total_cost - tax
+
+            # ROI
+            roi = (profit_net / total_cost * 100) if total_cost > 0 else None
+
+            # Margin%
+            margin_percent = (profit_net / revenue_gross * 100) if gross_available and revenue_gross > 0 else None
+
+            # Buyout % (TODO: считать из данных когда будут самовыкупы)
+            buyout_percent = 0
+
+            # DOS 14 (Days of Stock за 14 дней)
+            # TODO: считать среднедневные продажи за 14 дней
+            dos_14 = None
 
             # Остатки
             stock_qty = stocks_map.get(nm_id, 0)
+
+            # СТАТУСЫ (раздел 15.4.1 ТЗ)
+            statuses = []
+
+            # NO_COGS: себестоимость не указана
+            current_cost_price = self.db.get_current_cost_price(nm_id) or 0
+            if current_cost_price == 0:
+                statuses.append('NO_COGS')
+
+            # GROSS_UNKNOWN: revenue_gross недоступен
+            if not gross_available and total_sales_qty > 0:
+                statuses.append('GROSS_UNKNOWN')
+
+            # OOS: товар закончился
+            if stock_qty == 0:
+                statuses.append('OOS')
+
+            # ABC class (TODO: реализовать классификацию)
+            abc_class = None
 
             summary.append({
                 'nm_id': nm_id,
                 'article': product['article'],
                 'name': product['name'],
                 'brand': product['brand'],
+                'subject': product.get('subject', ''),
                 'image_url': product.get('image_url', ''),
-                'sales_qty_30d': total_sales_qty,
-                'revenue_30d': round(total_revenue, 2),
+                'statuses': statuses,
+                'profit_net': round(profit_net, 2),
+                'revenue_gross': round(revenue_gross, 2) if gross_available else None,
+                'payout_net': round(payout_net, 2),
+                'margin_percent': round(margin_percent, 2) if margin_percent is not None else None,
+                'roi': round(roi, 2) if roi is not None else None,
+                'cogs': round(total_cost, 2),
+                'total_expenses': round(total_expenses, 2),
+                'commission': round(total_commission, 2),
+                'logistics': round(total_logistics, 2),
+                'storage': round(total_storage, 2),
+                'penalties': round(total_penalties, 2),
+                'ads': round(total_ads, 2),
+                'returns': round(total_returns, 2),
+                'other': round(total_other, 2),
+                'buyout_percent': buyout_percent,
+                'dos_14': dos_14,
                 'stock_qty': stock_qty,
-                'cost_price': product.get('cost_price', 0),
+                'sales_qty': total_sales_qty,
+                'abc_class': abc_class,
+                'cost_price': current_cost_price,
                 'wb_commission': product.get('wb_commission_percent', 15)
             })
 
-        # Сортировка по выручке (убывание)
-        summary.sort(key=lambda x: x['revenue_30d'], reverse=True)
+        # Сортировка по прибыли (убывание) - default sort
+        summary.sort(key=lambda x: x['profit_net'], reverse=True)
 
         return summary
 
@@ -395,6 +567,90 @@ class AnalyticsService:
 
         return products_list[:limit]
 
+    def get_top_profit(self, period: str = 'month', limit: int = 10) -> List[Dict]:
+        """
+        Топ товаров по прибыли (раздел 15.5 ТЗ)
+
+        Args:
+            period: Период для расчёта
+            limit: Количество товаров
+
+        Returns:
+            Список топ товаров по Profit Net
+        """
+        summary = self.get_products_summary(period=period)
+        summary.sort(key=lambda x: x['profit_net'], reverse=True)
+        return summary[:limit]
+
+    def get_top_revenue(self, period: str = 'month', limit: int = 10) -> List[Dict]:
+        """
+        Топ товаров по выручке (раздел 15.5 ТЗ)
+
+        Args:
+            period: Период для расчёта
+            limit: Количество товаров
+
+        Returns:
+            Список топ товаров по Revenue Gross
+        """
+        summary = self.get_products_summary(period=period)
+        # Фильтруем товары с доступной Revenue Gross
+        with_revenue = [p for p in summary if p['revenue_gross'] is not None and p['revenue_gross'] > 0]
+        with_revenue.sort(key=lambda x: x['revenue_gross'], reverse=True)
+        return with_revenue[:limit]
+
+    def get_worst_profit(self, period: str = 'month', limit: int = 10) -> List[Dict]:
+        """
+        Худшие товары по прибыли (раздел 15.5 ТЗ)
+
+        Args:
+            period: Период для расчёта
+            limit: Количество товаров
+
+        Returns:
+            Список худших товаров по Profit Net
+        """
+        summary = self.get_products_summary(period=period)
+        summary.sort(key=lambda x: x['profit_net'])  # По возрастанию (худшие первые)
+        return summary[:limit]
+
+    def get_fastest_change(self, period: str = 'month', limit: int = 10) -> List[Dict]:
+        """
+        Товары с самым быстрым изменением прибыли (раздел 15.5 ТЗ)
+
+        Args:
+            period: Период для расчёта
+            limit: Количество товаров
+
+        Returns:
+            Список товаров с наибольшим |Δ Profit Net %|
+        """
+        # Получаем данные за текущий период
+        current_summary = self.get_products_summary(period=period)
+
+        # Получаем данные за предыдущий период той же длительности
+        start_date, end_date = self.get_period_dates(period)
+        start_dt = datetime.fromisoformat(start_date)
+        end_dt = datetime.fromisoformat(end_date)
+        period_duration = end_dt - start_dt
+
+        prev_start_dt = start_dt - period_duration
+        prev_end_dt = start_dt
+
+        # Для предыдущего периода используем custom период
+        prev_summary = self.get_products_summary(period='custom')
+        # TODO: нужен параметр для передачи custom_start/custom_end в get_products_summary
+
+        # Пока упрощённая версия: считаем изменение только по текущим данным
+        # Добавляем процентное изменение profit_net (пока нулевое)
+        for product in current_summary:
+            product['profit_change_percent'] = 0  # TODO: рассчитать реальное изменение
+
+        # Сортируем по абсолютному значению изменения
+        current_summary.sort(key=lambda x: abs(x.get('profit_change_percent', 0)), reverse=True)
+
+        return current_summary[:limit]
+
     def get_dashboard_data(self, period: str = 'today',
                           custom_start: str = None,
                           custom_end: str = None) -> Dict:
@@ -418,11 +674,19 @@ class AnalyticsService:
             custom_end=custom_end
         )
 
-        # Топ товаров
+        # Топ товаров (старый формат для совместимости)
         top_products = self.get_top_products(period=period, limit=5)
 
-        # Сводка по товарам
-        products_summary = self.get_products_summary()
+        # Сводка по товарам (с новыми метриками)
+        products_summary = self.get_products_summary(period=period)
+
+        # TOP BLOCKS (раздел 15.5 ТЗ)
+        top_blocks = {
+            'top_profit': self.get_top_profit(period=period, limit=10),
+            'top_revenue': self.get_top_revenue(period=period, limit=10),
+            'worst_profit': self.get_worst_profit(period=period, limit=10),
+            'fastest_change': self.get_fastest_change(period=period, limit=10)
+        }
 
         # Текущие остатки
         stocks = self.db.get_latest_stocks()
@@ -440,15 +704,20 @@ class AnalyticsService:
             'total_products': len(self.db.get_products())
         }
 
+        # Настройки (для передачи в UI)
+        settings = self.db.get_settings()
+
         dashboard_data = {
             'metrics': metrics,
             'top_products': top_products,
             'products_summary': products_summary,
+            'top_blocks': top_blocks,
             'stocks': {
                 'total_quantity': total_stock_qty,
                 'total_value': round(total_stock_value, 2),
                 'items_count': len(stocks)
             },
+            'settings': settings,
             'sync_status': sync_status,
             'generated_at': datetime.now().isoformat()
         }
