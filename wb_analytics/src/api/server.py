@@ -9,9 +9,16 @@ import logging
 from pathlib import Path
 from flask import Flask, jsonify, request, render_template, send_from_directory
 from flask_cors import CORS
+from dotenv import load_dotenv
 
 # Добавление корневой директории в путь
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+ROOT_DIR = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(ROOT_DIR))
+
+# Загрузка переменных окружения из .env
+env_path = ROOT_DIR / '.env'
+if env_path.exists():
+    load_dotenv(env_path)
 
 from src.services.analytics import AnalyticsService
 from src.database.models import DatabaseManager
