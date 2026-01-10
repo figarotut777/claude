@@ -315,7 +315,7 @@ def manage_cost_prices():
 
             products_with_costs = []
             for product in products:
-                cost_price = db_manager.get_cost_price(product['nm_id'])
+                cost_price = db_manager.get_current_cost_price(product['nm_id'])
                 products_with_costs.append({
                     **product,
                     'cost_price': cost_price

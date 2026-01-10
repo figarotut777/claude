@@ -70,7 +70,7 @@ async function loadData(period = 'month', customStart = null, customEnd = null) 
     } catch (error) {
         console.error('Ошибка загрузки данных:', error);
         document.getElementById('productsTable').innerHTML = `
-            <tr><td colspan="13" class="loading" style="color: #ef4444;">
+            <tr><td colspan="12" class="loading" style="color: #ef4444;">
                 Ошибка загрузки данных. Проверьте подключение к серверу.
             </td></tr>
         `;
@@ -82,24 +82,17 @@ function renderProducts(products) {
     const tbody = document.getElementById('productsTable');
 
     if (!products || products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="13" class="loading">Нет данных за выбранный период</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="loading">Нет данных за выбранный период</td></tr>';
         return;
     }
 
     tbody.innerHTML = products.map(product => {
-        const photo = getWBPhotoURL(product.nm_id);
         const profit = product.profit_net || 0;
         const profitClass = profit >= 0 ? 'profit-positive' : 'profit-negative';
         const roi = product.roi !== null ? formatPercent(product.roi) : '<span style="color: #888;">N/A</span>';
 
         return `
             <tr>
-                <td class="col-photo">
-                    <img src="${photo}"
-                         alt="${product.article || ''}"
-                         class="product-photo"
-                         onerror="this.style.display='none'">
-                </td>
                 <td class="col-article">${product.article || '-'}</td>
                 <td class="col-number">${formatCurrency(product.revenue_gross)}</td>
                 <td class="col-number">${formatCurrency(product.commission)}</td>

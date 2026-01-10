@@ -43,7 +43,7 @@ async function loadProducts() {
     } catch (error) {
         console.error('Ошибка загрузки данных:', error);
         document.getElementById('costPricesTable').innerHTML = `
-            <tr><td colspan="6" class="loading" style="color: #ef4444;">
+            <tr><td colspan="5" class="loading" style="color: #ef4444;">
                 Ошибка загрузки данных. Проверьте подключение к серверу.
             </td></tr>
         `;
@@ -55,22 +55,15 @@ function renderProducts(products) {
     const tbody = document.getElementById('costPricesTable');
 
     if (!products || products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="loading">Нет товаров</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="loading">Нет товаров</td></tr>';
         return;
     }
 
     tbody.innerHTML = products.map(product => {
-        const photo = getWBPhotoURL(product.nm_id);
         const currentCost = product.cost_price || 0;
 
         return `
             <tr data-nm-id="${product.nm_id}">
-                <td class="col-photo">
-                    <img src="${photo}"
-                         alt="${product.article || ''}"
-                         class="product-photo"
-                         onerror="this.style.display='none'">
-                </td>
                 <td class="col-article">${product.article || '-'}</td>
                 <td>${product.name || 'Без названия'}</td>
                 <td class="col-number">${formatCurrency(currentCost)}</td>
