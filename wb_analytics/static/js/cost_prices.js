@@ -13,17 +13,6 @@ function formatCurrency(num) {
     return formatNumber(num) + ' ₽';
 }
 
-// Получение URL фото товара из WB
-function getWBPhotoURL(nmId) {
-    if (!nmId) return '';
-
-    const vol = Math.floor(nmId / 100000);
-    const part = Math.floor(nmId / 1000);
-    const basket = String((nmId % 16) + 1).padStart(2, '0');
-
-    return `https://basket-${basket}.wbbasket.ru/vol${vol}/part${part}/${nmId}/images/c246x328/1.jpg`;
-}
-
 // Загрузка товаров с себестоимостью
 async function loadProducts() {
     try {
