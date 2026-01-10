@@ -345,7 +345,9 @@ class AnalyticsService:
 
         return ((new_value - old_value) / old_value) * 100
 
-    def get_products_summary(self, period: str = 'month') -> List[Dict]:
+    def get_products_summary(self, period: str = 'month',
+                            custom_start: str = None,
+                            custom_end: str = None) -> List[Dict]:
         """
         Получение сводки по всем товарам с расчётом прибыли и статусов (по ТЗ раздел 15.4)
 
@@ -369,7 +371,7 @@ class AnalyticsService:
             stocks_map[nm_id] += stock.get('quantity', 0)
 
         # Получение дат периода
-        start_date, end_date = self.get_period_dates(period)
+        start_date, end_date = self.get_period_dates(period, custom_start, custom_end)
 
         # Сводка по каждому товару
         summary = []
@@ -638,13 +640,30 @@ class AnalyticsService:
         prev_end_dt = start_dt
 
         # Для предыдущего периода используем custom период
-        prev_summary = self.get_products_summary(period='custom')
-        # TODO: нужен параметр для передачи custom_start/custom_end в get_products_summary
+        prev_summary = self.get_products_summary(
+            period='custom',
+            custom_start=prev_start_dt.isoformat(),
+            custom_end=prev_end_dt.isoformat()
+        )
 
-        # Пока упрощённая версия: считаем изменение только по текущим данным
-        # Добавляем процентное изменение profit_net (пока нулевое)
+        # Создаём мапу предыдущих значений прибыли по nm_id
+        prev_profit_map = {p['nm_id']: p.get('profit_net', 0) for p in prev_summary}
+
+        # Рассчитываем процентное изменение прибыли
         for product in current_summary:
-            product['profit_change_percent'] = 0  # TODO: рассчитать реальное изменение
+            nm_id = product['nm_id']
+            current_profit = product.get('profit_net', 0)
+            prev_profit = prev_profit_map.get(nm_id, 0)
+
+            # Расчёт процентного изменения
+            if prev_profit != 0:
+                change_percent = ((current_profit - prev_profit) / abs(prev_profit)) * 100
+            elif current_profit != 0:
+                change_percent = 100  # Если была 0, а стала положительная - 100% рост
+            else:
+                change_percent = 0
+
+            product['profit_change_percent'] = round(change_percent, 2)
 
         # Сортируем по абсолютному значению изменения
         current_summary.sort(key=lambda x: abs(x.get('profit_change_percent', 0)), reverse=True)
