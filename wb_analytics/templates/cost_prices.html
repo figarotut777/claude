@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Себестоимость товаров - WB Analytics</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    <!-- Боковое меню -->
+    <aside class="sidebar">
+        <div class="logo">
+            <span class="logo-icon">📊</span>
+            <h2>WB Analytics</h2>
+        </div>
+
+        <nav class="nav">
+            <a href="/" class="nav-item">
+                <span class="nav-icon">📊</span>
+                <span>Аналитика</span>
+            </a>
+            <a href="/cost-prices" class="nav-item active">
+                <span class="nav-icon">💰</span>
+                <span>Себестоимость</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Основной контент -->
+    <main class="content">
+        <header class="header">
+            <h1>Управление себестоимостью</h1>
+        </header>
+
+        <!-- Поиск и фильтры -->
+        <div class="filters">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Поиск по артикулу или названию" class="search-input">
+            </div>
+        </div>
+
+        <!-- Таблица товаров с себестоимостью -->
+        <div class="products-section">
+            <div class="table-wrapper">
+                <table class="products-table">
+                    <thead>
+                        <tr>
+                            <th class="col-photo">Фото</th>
+                            <th class="col-article">Артикул</th>
+                            <th>Название</th>
+                            <th class="col-number">Текущая себестоимость</th>
+                            <th class="col-number">Новая себестоимость</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="costPricesTable">
+                        <tr>
+                            <td colspan="6" class="loading">Загрузка...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/cost_prices.js"></script>
+</body>
+</html>

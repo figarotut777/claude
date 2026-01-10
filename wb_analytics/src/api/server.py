@@ -51,6 +51,12 @@ def index():
     return render_template('dashboard.html')
 
 
+@app.route('/cost-prices')
+def cost_prices_page():
+    """Страница управления себестоимостью"""
+    return render_template('cost_prices.html')
+
+
 @app.route('/api/health')
 def health_check():
     """Проверка работоспособности API"""
@@ -284,6 +290,77 @@ def get_sync_status():
 
     except Exception as e:
         logger.error(f"Ошибка при получении статуса синхронизации: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/cost-prices', methods=['GET', 'POST'])
+def manage_cost_prices():
+    """
+    Получение списка товаров с себестоимостью или обновление себестоимости
+
+    GET: возвращает все товары с текущей себестоимостью
+    POST: обновляет себестоимость для товара
+
+    Body (для POST):
+        {
+            "nm_id": 123456789,
+            "cost_price": 500.0,
+            "valid_from": "2025-01-09" (опционально)
+        }
+    """
+    try:
+        if request.method == 'GET':
+            # Получение всех товаров с себестоимостью
+            products = db_manager.get_products()
+
+            products_with_costs = []
+            for product in products:
+                cost_price = db_manager.get_cost_price(product['nm_id'])
+                products_with_costs.append({
+                    **product,
+                    'cost_price': cost_price
+                })
+
+            return jsonify({
+                'products': products_with_costs,
+                'total': len(products_with_costs)
+            })
+
+        elif request.method == 'POST':
+            # Обновление себестоимости
+            data = request.get_json()
+
+            if not data or 'nm_id' not in data or 'cost_price' not in data:
+                return jsonify({'error': 'Не указан nm_id или cost_price'}), 400
+
+            nm_id = data.get('nm_id')
+            cost_price = data.get('cost_price')
+            valid_from = data.get('valid_from')
+
+            # Проверка что товар существует
+            product = db_manager.get_product_by_nm_id(nm_id)
+            if not product:
+                return jsonify({'error': 'Товар не найден'}), 404
+
+            logger.info(f"Обновление себестоимости товара {nm_id}: {cost_price} ₽")
+
+            # Обновление через историческую таблицу
+            record_id = db_manager.update_cost_price(
+                nm_id=nm_id,
+                cost_price=cost_price,
+                valid_from=valid_from
+            )
+
+            return jsonify({
+                'success': True,
+                'message': 'Себестоимость обновлена',
+                'record_id': record_id,
+                'nm_id': nm_id,
+                'cost_price': cost_price
+            })
+
+    except Exception as e:
+        logger.error(f"Ошибка при работе с себестоимостью: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 

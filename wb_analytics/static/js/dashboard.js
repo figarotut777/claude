@@ -55,6 +55,11 @@ async function loadData(period = 'month', customStart = null, customEnd = null) 
             renderProducts(allProducts);
         }
 
+        // Рендер Top & Bottom SKU
+        if (data.top_blocks) {
+            renderTopBlocks(data.top_blocks);
+        }
+
         // Обновление последней синхронизации
         if (data.sync_status && data.sync_status.last_incremental_sync) {
             const syncDate = new Date(data.sync_status.last_incremental_sync);
@@ -65,7 +70,7 @@ async function loadData(period = 'month', customStart = null, customEnd = null) 
     } catch (error) {
         console.error('Ошибка загрузки данных:', error);
         document.getElementById('productsTable').innerHTML = `
-            <tr><td colspan="14" class="loading" style="color: #ef4444;">
+            <tr><td colspan="13" class="loading" style="color: #ef4444;">
                 Ошибка загрузки данных. Проверьте подключение к серверу.
             </td></tr>
         `;
@@ -77,7 +82,7 @@ function renderProducts(products) {
     const tbody = document.getElementById('productsTable');
 
     if (!products || products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="14" class="loading">Нет данных за выбранный период</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" class="loading">Нет данных за выбранный период</td></tr>';
         return;
     }
 
@@ -96,9 +101,6 @@ function renderProducts(products) {
                          onerror="this.style.display='none'">
                 </td>
                 <td class="col-article">${product.article || '-'}</td>
-                <td class="col-name">
-                    <div class="product-name">${product.name || 'Без названия'}</div>
-                </td>
                 <td class="col-number">${formatCurrency(product.revenue_gross)}</td>
                 <td class="col-number">${formatCurrency(product.commission)}</td>
                 <td class="col-number">${formatCurrency(product.logistics)}</td>
@@ -175,6 +177,61 @@ function setupPeriodFilters() {
         currentPeriod = 'custom';
         loadData('custom', dateFrom, dateTo);
     });
+}
+
+// Рендер Top & Bottom SKU
+function renderTopBlocks(topBlocks) {
+    if (!topBlocks) return;
+
+    renderTopList('topProfit', topBlocks.top_profit, 'profit');
+    renderTopList('topRevenue', topBlocks.top_revenue, 'revenue');
+    renderTopList('worstProfit', topBlocks.worst_profit, 'profit');
+    renderTopList('fastestChange', topBlocks.fastest_change, 'change');
+}
+
+function renderTopList(elementId, products, valueType) {
+    const container = document.getElementById(elementId);
+
+    if (!container) return;
+
+    if (!products || products.length === 0) {
+        container.innerHTML = '<div class="loading-small">Нет данных</div>';
+        return;
+    }
+
+    container.innerHTML = products.map((product, index) => {
+        let valueDisplay = '';
+        let valueColor = '#9ca3af';
+
+        if (valueType === 'profit') {
+            const profit = product.profit_net || 0;
+            valueColor = profit >= 0 ? '#10b981' : '#ef4444';
+            valueDisplay = formatCurrency(profit);
+        } else if (valueType === 'revenue') {
+            valueDisplay = formatCurrency(product.revenue_gross || 0);
+            valueColor = '#10b981';
+        } else if (valueType === 'change') {
+            const change = product.profit_change_percent || 0;
+            valueColor = change >= 0 ? '#10b981' : '#ef4444';
+            valueDisplay = (change >= 0 ? '+' : '') + formatPercent(Math.abs(change));
+        }
+
+        const articleName = product.article || product.name || '-';
+        const subtitle = [product.brand, product.subject].filter(Boolean).join(' | ') || '-';
+
+        return `
+            <div class="top-item">
+                <span class="top-rank">${index + 1}</span>
+                <div class="top-info">
+                    <strong>${articleName}</strong>
+                    <small>${subtitle}</small>
+                </div>
+                <div class="top-value">
+                    <span style="color: ${valueColor};">${valueDisplay}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 // Инициализация
