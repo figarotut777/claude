@@ -1,117 +1,47 @@
-// Wildberries Analytics Dashboard JavaScript
+// WB Analytics - JavaScript
 
-// Конфигурация
-const API_BASE_URL = '';
-let currentPeriod = 'month'; // Изменено с 'today' на 'month' для отображения всех данных
+let currentPeriod = 'month';
+let allProducts = [];
 
-// Инициализация при загрузке страницы
-document.addEventListener('DOMContentLoaded', function() {
-    initSidebarNavigation();
-    initPeriodSelector();
-    loadDashboard();
-
-    // Автообновление каждые 5 минут
-    setInterval(loadDashboard, 5 * 60 * 1000);
-});
-
-// Инициализация навигации в боковом меню
-function initSidebarNavigation() {
-    const navItems = document.querySelectorAll('.nav-item');
-
-    navItems.forEach(item => {
-        item.addEventListener('click', function(e) {
-            e.preventDefault();
-
-            // Снятие активного класса со всех пунктов меню
-            navItems.forEach(nav => nav.classList.remove('active'));
-
-            // Установка активного класса на выбранный пункт
-            this.classList.add('active');
-
-            // Получение секции для показа
-            const sectionId = this.dataset.section;
-            showSection(sectionId);
-        });
-    });
+// Форматирование чисел
+function formatNumber(num) {
+    if (!num && num !== 0) return '-';
+    return new Intl.NumberFormat('ru-RU').format(Math.round(num));
 }
 
-// Показ выбранной секции
-function showSection(sectionId) {
-    // Скрытие всех секций
-    const sections = document.querySelectorAll('.content-section');
-    sections.forEach(section => section.classList.remove('active'));
-
-    // Показ выбранной секции
-    const targetSection = document.getElementById(`section-${sectionId}`);
-    if (targetSection) {
-        targetSection.classList.add('active');
-    }
-
-    // Загрузка данных для секции
-    if (sectionId === 'dashboard') {
-        loadDashboard();
-    } else if (sectionId === 'finances') {
-        loadFinances();
-    } else if (sectionId === 'products') {
-        loadProducts();
-    } else if (sectionId === 'expenses') {
-        loadExpenses();
-    }
+function formatCurrency(num) {
+    if (!num && num !== 0) return '-';
+    return formatNumber(num) + ' ₽';
 }
 
-// Инициализация селектора периода
-function initPeriodSelector() {
-    const periodButtons = document.querySelectorAll('.period-btn');
-
-    periodButtons.forEach(btn => {
-        btn.addEventListener('click', function() {
-            // Снятие активного класса со всех кнопок
-            periodButtons.forEach(b => b.classList.remove('active'));
-
-            // Установка активного класса
-            this.classList.add('active');
-
-            // Сохранение периода
-            currentPeriod = this.dataset.period;
-
-            // Показ/скрытие кастомного периода
-            const customPeriod = document.getElementById('customPeriod');
-            if (currentPeriod === 'custom') {
-                customPeriod.style.display = 'flex';
-            } else {
-                customPeriod.style.display = 'none';
-                loadDashboard();
-            }
-        });
-    });
+function formatPercent(num) {
+    if (!num && num !== 0) return '-';
+    return num.toFixed(1) + '%';
 }
 
-// Применение кастомного периода
-function applyCustomPeriod() {
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
+// Получение URL фото товара из WB
+function getWBPhotoURL(nmId) {
+    if (!nmId) return '';
 
-    if (!startDate || !endDate) {
-        alert('Пожалуйста, выберите начальную и конечную дату');
-        return;
-    }
+    const nmIdStr = String(nmId);
+    const vol = Math.floor(nmId / 100000);
+    const part = Math.floor(nmId / 1000);
 
-    loadDashboard(startDate, endDate);
+    // Определение корзины (basket номер от 01 до 16)
+    const basket = String((nmId % 16) + 1).padStart(2, '0');
+
+    return `https://basket-${basket}.wbbasket.ru/vol${vol}/part${part}/${nmId}/images/c246x328/1.jpg`;
 }
 
-// Загрузка данных дашборда
-async function loadDashboard(customStart = null, customEnd = null) {
+// Загрузка данных
+async function loadData(period = 'month', customStart = null, customEnd = null) {
     try {
-        showLoading();
+        let url = `/api/dashboard?period=${period}`;
 
-        // Формирование URL
-        let url = `${API_BASE_URL}/api/dashboard?period=${currentPeriod}`;
-
-        if (currentPeriod === 'custom' && customStart && customEnd) {
-            url += `&custom_start=${customStart}T00:00:00Z&custom_end=${customEnd}T23:59:59Z`;
+        if (period === 'custom' && customStart && customEnd) {
+            url += `&custom_start=${customStart}&custom_end=${customEnd}`;
         }
 
-        // Запрос данных
         const response = await fetch(url);
 
         if (!response.ok) {
@@ -120,702 +50,136 @@ async function loadDashboard(customStart = null, customEnd = null) {
 
         const data = await response.json();
 
-        // Обновление UI
-        updateMetrics(data.metrics);
-        updateTopProducts(data.top_products);
-        updateAllProducts(data.products_summary);
-        updateSyncStatus(data.sync_status);
+        if (data.products_summary) {
+            allProducts = data.products_summary;
+            renderProducts(allProducts);
+        }
 
-        // Рендеринг Top Blocks (Раздел 15.5 ТЗ)
-        if (data.top_blocks) {
-            renderTopBlocks(data.top_blocks);
+        // Обновление последней синхронизации
+        if (data.sync_status && data.sync_status.last_incremental_sync) {
+            const syncDate = new Date(data.sync_status.last_incremental_sync);
+            document.getElementById('lastSync').textContent =
+                `Обновлено: ${syncDate.toLocaleString('ru-RU')}`;
         }
 
     } catch (error) {
         console.error('Ошибка загрузки данных:', error);
-        showError('Не удалось загрузить данные. Проверьте подключение к серверу.');
+        document.getElementById('productsTable').innerHTML = `
+            <tr><td colspan="14" class="loading" style="color: #ef4444;">
+                Ошибка загрузки данных. Проверьте подключение к серверу.
+            </td></tr>
+        `;
     }
 }
 
-// Обновление метрик
-function updateMetrics(metrics) {
-    if (!metrics) return;
-
-    const sales = metrics.sales || {};
-    const profit = metrics.profit || {};
-    const expenses = metrics.expenses || {};
-    const trends = metrics.trends || {};
-
-    // ===== НОВЫЕ KPI CARDS (Раздел 15.1 ТЗ) =====
-
-    // 1. Revenue Gross (Выручка валовая)
-    const revenueGrossEl = document.getElementById('revenueGross');
-    const cardRevenueGross = document.getElementById('cardRevenueGross');
-    if (sales.revenue_gross_available) {
-        revenueGrossEl.textContent = formatCurrency(sales.revenue_gross || 0);
-        cardRevenueGross.classList.remove('warning');
-    } else {
-        revenueGrossEl.textContent = 'N/A';
-        cardRevenueGross.classList.add('warning');
-        cardRevenueGross.title = 'Revenue Gross недоступен - используется Payout Net для расчётов';
-    }
-    updateTrendIndicator('revenueGrossChange', trends.revenue_change_percent);
-
-    // 2. Payout Net (К выплате от WB)
-    document.getElementById('payoutNet').textContent = formatCurrency(sales.payout_net || 0);
-    updateTrendIndicator('payoutNetChange', trends.revenue_change_percent);
-
-    // 3. Total Expenses (Все расходы кроме COGS и налога)
-    document.getElementById('totalExpenses').textContent = formatCurrency(expenses.total_expenses || 0);
-    updateTrendIndicator('totalExpensesChange', null);
-
-    // 4. COGS (Себестоимость)
-    document.getElementById('cogs').textContent = formatCurrency(expenses.cogs || 0);
-    updateTrendIndicator('cogsChange', null);
-
-    // 5. Profit Net (Чистая прибыль) - ГЛАВНАЯ МЕТРИКА
-    const profitNetValue = profit.profit_net || 0;
-    const profitNetEl = document.getElementById('profitNet');
-    profitNetEl.textContent = formatCurrency(profitNetValue);
-    profitNetEl.style.color = profitNetValue >= 0 ? '#10b981' : '#ef4444';
-    updateTrendIndicator('profitNetChange', null);
-
-    // 6. Margin % (Маржинальность)
-    const marginEl = document.getElementById('marginPercent');
-    if (profit.margin_available && profit.margin_percent !== null) {
-        marginEl.textContent = formatPercent(profit.margin_percent);
-    } else {
-        marginEl.textContent = 'N/A';
-        marginEl.title = 'Недоступно: требуется Revenue Gross';
-    }
-
-    // 7. ROI (Рентабельность инвестиций)
-    const roiEl = document.getElementById('roi');
-    if (profit.roi_available && profit.roi !== null) {
-        roiEl.textContent = formatPercent(profit.roi);
-    } else {
-        roiEl.textContent = 'N/A';
-        roiEl.title = 'Недоступно: COGS = 0';
-    }
-
-    // 8. Tax (Налог)
-    document.getElementById('tax').textContent = formatCurrency(profit.tax || 0);
-
-    // Установка текущей налоговой ставки в радио-кнопки
-    const taxRate = profit.tax_rate || 0.06;
-    if (taxRate === 0.04) {
-        document.querySelector('input[name="taxRate"][value="0.04"]').checked = true;
-    } else {
-        document.querySelector('input[name="taxRate"][value="0.06"]').checked = true;
-    }
-
-    // ===== ДОПОЛНИТЕЛЬНЫЕ МЕТРИКИ =====
-
-    // Продажи (штуки)
-    document.getElementById('salesQty').textContent = formatNumber(sales.quantity || 0);
-    updateTrendIndicator('salesQtyChange', trends.quantity_change_percent);
-
-    // Средний чек
-    document.getElementById('avgOrderValue').textContent =
-        formatCurrency(sales.avg_order_value || 0);
-
-    // ===== EXPENSE BREAKDOWN (Раздел 15.6 ТЗ) =====
-    renderExpenseBreakdown(expenses, profit);
-
-    // ===== СТАРЫЕ РАСХОДЫ WB (для совместимости) =====
-    if (document.getElementById('expenseCommission')) {
-        document.getElementById('expenseCommission').textContent =
-            formatCurrency(expenses.commission || 0);
-    }
-    if (document.getElementById('expenseLogistics')) {
-        document.getElementById('expenseLogistics').textContent =
-            formatCurrency(expenses.logistics || 0);
-    }
-    if (document.getElementById('expenseStorage')) {
-        document.getElementById('expenseStorage').textContent =
-            formatCurrency(expenses.storage || 0);
-    }
-    if (document.getElementById('expensePenalties')) {
-        document.getElementById('expensePenalties').textContent =
-            formatCurrency(expenses.penalties || 0);
-    }
-}
-
-// Обновление индикатора тренда
-function updateTrendIndicator(elementId, changePercent) {
-    const element = document.getElementById(elementId);
-
-    if (changePercent === undefined || changePercent === null) {
-        element.textContent = '-';
-        return;
-    }
-
-    const isPositive = changePercent >= 0;
-    const arrow = isPositive ? '↑' : '↓';
-    const className = isPositive ? 'positive' : 'negative';
-
-    element.textContent = `${arrow} ${Math.abs(changePercent).toFixed(1)}%`;
-    element.className = `metric-change ${className}`;
-}
-
-// Обновление топ товаров
-function updateTopProducts(products) {
-    const tbody = document.querySelector('#topProductsTable tbody');
+// Рендер таблицы товаров
+function renderProducts(products) {
+    const tbody = document.getElementById('productsTable');
 
     if (!products || products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="loading">Нет данных</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = products.slice(0, 5).map((product, index) => `
-        <tr>
-            <td><strong>${index + 1}</strong></td>
-            <td>${escapeHtml(product.article || '-')}</td>
-            <td>${escapeHtml(product.name || '-')}</td>
-            <td>${formatNumber(product.quantity || 0)}</td>
-            <td><strong>${formatCurrency(product.revenue || 0)}</strong></td>
-        </tr>
-    `).join('');
-}
-
-// Обновление всех товаров
-function updateAllProducts(products) {
-    const tbody = document.querySelector('#allProductsTable tbody');
-
-    if (!products || products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="22" class="loading">Нет данных</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="14" class="loading">Нет данных за выбранный период</td></tr>';
         return;
     }
 
     tbody.innerHTML = products.map(product => {
-        // SKU (article + nm_id)
-        const sku = `${escapeHtml(product.article || '-')} <small>(${product.nm_id})</small>`;
-
-        // Статусы (NO_COGS, GROSS_UNKNOWN, OOS)
-        const statuses = product.statuses || [];
-        const statusBadges = statuses.map(status => {
-            const colors = {
-                'NO_COGS': 'background: #f59e0b; color: white;',
-                'GROSS_UNKNOWN': 'background: #6b7280; color: white;',
-                'OOS': 'background: #ef4444; color: white;'
-            };
-            return `<span class="status-badge" style="${colors[status] || ''}">${status}</span>`;
-        }).join(' ');
-
-        // Profit Net (с цветом)
-        const profitNet = product.profit_net || 0;
-        const profitColor = profitNet >= 0 ? '#10b981' : '#ef4444';
-
-        // Δ Profit Net (пока нет данных)
-        const deltaProfitNet = product.profit_change_percent || 0;
-        const deltaDisplay = deltaProfitNet !== 0
-            ? `${deltaProfitNet > 0 ? '↑' : '↓'} ${formatCurrency(Math.abs(deltaProfitNet))} (${formatPercent(deltaProfitNet)})`
-            : '-';
-
-        // Revenue Gross (может быть N/A)
-        const revenueGrossDisplay = product.revenue_gross !== null
-            ? formatCurrency(product.revenue_gross)
-            : '<span style="color: #9ca3af;">N/A</span>';
-
-        // Margin % и ROI % (могут быть N/A)
-        const marginDisplay = product.margin_percent !== null
-            ? formatPercent(product.margin_percent)
-            : '<span style="color: #9ca3af;">N/A</span>';
-
-        const roiDisplay = product.roi !== null
-            ? formatPercent(product.roi)
-            : '<span style="color: #9ca3af;">N/A</span>';
-
-        // DOS 14 и ABC (пока N/A)
-        const dos14Display = product.dos_14 !== null ? product.dos_14.toFixed(1) : '-';
-        const abcDisplay = product.abc_class || '-';
+        const photo = getWBPhotoURL(product.nm_id);
+        const profit = product.profit_net || 0;
+        const profitClass = profit >= 0 ? 'profit-positive' : 'profit-negative';
+        const roi = product.roi !== null ? formatPercent(product.roi) : '<span style="color: #888;">N/A</span>';
 
         return `
-        <tr>
-            <td><strong>${sku}</strong></td>
-            <td>${statusBadges || '-'}</td>
-            <td style="color: ${profitColor};"><strong>${formatCurrency(profitNet)}</strong></td>
-            <td><small>${deltaDisplay}</small></td>
-            <td>${revenueGrossDisplay}</td>
-            <td>${formatCurrency(product.payout_net || 0)}</td>
-            <td>${marginDisplay}</td>
-            <td>${roiDisplay}</td>
-            <td>${formatCurrency(product.cogs || 0)}</td>
-            <td>${formatCurrency(product.total_expenses || 0)}</td>
-            <td><small>${formatCurrency(product.commission || 0)}</small></td>
-            <td><small>${formatCurrency(product.logistics || 0)}</small></td>
-            <td><small>${formatCurrency(product.storage || 0)}</small></td>
-            <td><small>${formatCurrency(product.penalties || 0)}</small></td>
-            <td><small>${formatCurrency(product.ads || 0)}</small></td>
-            <td><small>${formatCurrency(product.returns || 0)}</small></td>
-            <td><small>${formatCurrency(product.other || 0)}</small></td>
-            <td><small>${product.buyout_percent ? formatPercent(product.buyout_percent) : '-'}</small></td>
-            <td><small>${dos14Display}</small></td>
-            <td>${formatNumber(product.stock_qty || 0)}</td>
-            <td><small>${abcDisplay}</small></td>
-            <td>
-                <button class="btn-edit-cost" onclick="editProductCost(${product.nm_id}, '${escapeHtml(product.article || '')}', ${product.cost_price || 0})" title="Редактировать себестоимость">
-                    ✏️
-                </button>
-            </td>
-        </tr>
+            <tr>
+                <td class="col-photo">
+                    <img src="${photo}"
+                         alt="${product.article || ''}"
+                         class="product-photo"
+                         onerror="this.style.display='none'">
+                </td>
+                <td class="col-article">${product.article || '-'}</td>
+                <td class="col-name">
+                    <div class="product-name">${product.name || 'Без названия'}</div>
+                </td>
+                <td class="col-number">${formatCurrency(product.revenue_gross)}</td>
+                <td class="col-number">${formatCurrency(product.commission)}</td>
+                <td class="col-number">${formatCurrency(product.logistics)}</td>
+                <td class="col-number">${formatCurrency(product.storage)}</td>
+                <td class="col-number">${formatCurrency(product.penalties)}</td>
+                <td class="col-number">${formatCurrency(product.ads)}</td>
+                <td class="col-number">${formatCurrency(product.returns)}</td>
+                <td class="col-number">${formatCurrency(product.other)}</td>
+                <td class="col-number">${formatCurrency(product.cogs)}</td>
+                <td class="col-number ${profitClass}">${formatCurrency(profit)}</td>
+                <td class="col-number">${roi}</td>
+            </tr>
         `;
     }).join('');
 }
 
-// Обновление статуса синхронизации
-function updateSyncStatus(status) {
-    if (!status) return;
+// Поиск по таблице
+function setupSearch() {
+    const searchInput = document.getElementById('searchInput');
 
-    const lastUpdateElement = document.getElementById('lastUpdate');
+    searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
 
-    if (status.last_update) {
-        const lastUpdate = new Date(status.last_update);
-        lastUpdateElement.textContent = `Последнее обновление: ${formatDateTime(lastUpdate)}`;
-    } else {
-        lastUpdateElement.textContent = 'Обновление данных не выполнялось';
-    }
-}
+        if (!query) {
+            renderProducts(allProducts);
+            return;
+        }
 
-// Показ индикатора загрузки
-function showLoading() {
-    const tables = document.querySelectorAll('tbody');
-    tables.forEach(tbody => {
-        tbody.innerHTML = '<tr><td colspan="10" class="loading">Загрузка...</td></tr>';
+        const filtered = allProducts.filter(product => {
+            const article = (product.article || '').toLowerCase();
+            const name = (product.name || '').toLowerCase();
+            return article.includes(query) || name.includes(query);
+        });
+
+        renderProducts(filtered);
     });
 }
 
-// Показ ошибки
-function showError(message) {
-    alert(message);
-}
+// Обработка фильтров периодов
+function setupPeriodFilters() {
+    const tabs = document.querySelectorAll('.period-tab');
+    const customDateRange = document.getElementById('customDateRange');
+    const applyCustomBtn = document.getElementById('applyCustom');
+    const btnCustomPeriod = document.getElementById('btnCustomPeriod');
 
-// Утилиты форматирования
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const period = tab.dataset.period;
 
-function formatNumber(num) {
-    return new Intl.NumberFormat('ru-RU').format(num);
-}
+            // Удаление active со всех табов
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
 
-function formatCurrency(amount) {
-    return new Intl.NumberFormat('ru-RU', {
-        style: 'currency',
-        currency: 'RUB',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    }).format(amount);
-}
-
-function formatPercent(value) {
-    return `${value.toFixed(1)}%`;
-}
-
-function formatDateTime(date) {
-    return new Intl.DateTimeFormat('ru-RU', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-    }).format(date);
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// Загрузка раздела "Финансы" (P&L)
-async function loadFinances() {
-    try {
-        showLoading();
-
-        let url = `${API_BASE_URL}/api/dashboard?period=${currentPeriod}`;
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const metrics = data.metrics;
-
-        // Обновление P&L таблицы
-        updatePLTable(metrics);
-
-        // Обновление прибыльности по товарам
-        updateProductProfitTable(data.products_summary, metrics);
-
-        // Обновление времени
-        document.getElementById('lastUpdateFinances').textContent =
-            `Обновлено: ${formatDateTime(new Date())}`;
-
-    } catch (error) {
-        console.error('Ошибка загрузки финансов:', error);
-        showError('Не удалось загрузить финансовые данные');
-    }
-}
-
-// Обновление P&L таблицы
-function updatePLTable(metrics) {
-    const tbody = document.getElementById('plTable');
-
-    if (!metrics) {
-        tbody.innerHTML = '<tr><td colspan="3" class="loading">Нет данных</td></tr>';
-        return;
-    }
-
-    const sales = metrics.sales || {};
-    const expenses = metrics.expenses || {};
-    const profit = metrics.profit || {};
-
-    const revenue = sales.revenue || 0;
-    const commission = expenses.commission || 0;
-    const logistics = expenses.logistics || 0;
-    const storage = expenses.storage || 0;
-    const penalties = expenses.penalties || 0;
-    const totalWBExpenses = expenses.total_wb_expenses || 0;
-    const costOfGoods = expenses.cost_of_goods || 0;
-    const netProfit = profit.net_profit || 0;
-
-    tbody.innerHTML = `
-        <tr style="background: #f9fafb; font-weight: 600;">
-            <td>💰 Выручка</td>
-            <td style="text-align: right;">${formatCurrency(revenue)}</td>
-            <td style="text-align: right;">100.0%</td>
-        </tr>
-        <tr>
-            <td style="padding-left: 30px;">Минус: Комиссия WB</td>
-            <td style="text-align: right; color: var(--danger-color);">-${formatCurrency(commission)}</td>
-            <td style="text-align: right;">${formatPercent((commission / revenue * 100) || 0)}</td>
-        </tr>
-        <tr>
-            <td style="padding-left: 30px;">Минус: Логистика</td>
-            <td style="text-align: right; color: var(--danger-color);">-${formatCurrency(logistics)}</td>
-            <td style="text-align: right;">${formatPercent((logistics / revenue * 100) || 0)}</td>
-        </tr>
-        <tr>
-            <td style="padding-left: 30px;">Минус: Хранение</td>
-            <td style="text-align: right; color: var(--danger-color);">-${formatCurrency(storage)}</td>
-            <td style="text-align: right;">${formatPercent((storage / revenue * 100) || 0)}</td>
-        </tr>
-        <tr>
-            <td style="padding-left: 30px;">Минус: Штрафы</td>
-            <td style="text-align: right; color: var(--danger-color);">-${formatCurrency(penalties)}</td>
-            <td style="text-align: right;">${formatPercent((penalties / revenue * 100) || 0)}</td>
-        </tr>
-        <tr style="background: #fff7ed; font-weight: 600;">
-            <td>📊 Итого расходов WB</td>
-            <td style="text-align: right; color: var(--warning-color);">-${formatCurrency(totalWBExpenses)}</td>
-            <td style="text-align: right;">${formatPercent((totalWBExpenses / revenue * 100) || 0)}</td>
-        </tr>
-        <tr>
-            <td>💳 К выплате от WB</td>
-            <td style="text-align: right; color: var(--success-color);">${formatCurrency(sales.to_pay_from_wb || 0)}</td>
-            <td style="text-align: right;">${formatPercent(((sales.to_pay_from_wb || 0) / revenue * 100) || 0)}</td>
-        </tr>
-        <tr>
-            <td style="padding-left: 30px;">Минус: Себестоимость</td>
-            <td style="text-align: right; color: var(--danger-color);">-${formatCurrency(costOfGoods)}</td>
-            <td style="text-align: right;">${formatPercent((costOfGoods / revenue * 100) || 0)}</td>
-        </tr>
-        <tr style="background: ${netProfit >= 0 ? '#d1fae5' : '#fee2e2'}; font-weight: 700; font-size: 16px;">
-            <td>✨ Чистая прибыль</td>
-            <td style="text-align: right; color: ${netProfit >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">${formatCurrency(netProfit)}</td>
-            <td style="text-align: right;">${formatPercent(profit.margin_percent || 0)}</td>
-        </tr>
-    `;
-}
-
-// Обновление таблицы прибыльности по товарам
-function updateProductProfitTable(products, metrics) {
-    const tbody = document.getElementById('productProfitTable');
-
-    if (!products || products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading">Нет данных</td></tr>';
-        return;
-    }
-
-    // Заглушка - нужно будет получить детализацию с бэкенда
-    tbody.innerHTML = '<tr><td colspan="7" class="loading">Детализация по товарам в разработке</td></tr>';
-}
-
-// Загрузка раздела "Товары"
-async function loadProducts() {
-    try {
-        showLoading();
-
-        let url = `${API_BASE_URL}/api/dashboard?period=month`;
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        // Обновление таблицы товаров в секции "Товары"
-        const tbody = document.querySelector('#allProductsTableProducts');
-
-        if (!data.products_summary || data.products_summary.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="10" class="loading">Нет данных</td></tr>';
-        } else {
-            tbody.innerHTML = data.products_summary.map(product => {
-                const imageUrl = product.image_url || `https://via.placeholder.com/100x100?text=No+Image`;
-                return `
-                <tr>
-                    <td><img src="${imageUrl}" alt="${escapeHtml(product.name || '')}" class="product-thumbnail" onerror="this.src='https://via.placeholder.com/100x100?text=No+Image'"></td>
-                    <td>${escapeHtml(product.name || '-')}</td>
-                    <td>${escapeHtml(product.article || '-')}</td>
-                    <td>${escapeHtml(product.brand || '-')}</td>
-                    <td>${product.nm_id || '-'}</td>
-                    <td>${formatNumber(product.sales_qty_30d || 0)}</td>
-                    <td><strong>${formatCurrency(product.revenue_30d || 0)}</strong></td>
-                    <td>${formatNumber(product.stock_qty || 0)}</td>
-                    <td>${formatCurrency(product.cost_price || 0)}</td>
-                    <td>${formatPercent(product.wb_commission || 0)}</td>
-                </tr>
-                `;
-            }).join('');
-        }
-
-        // Обновление времени
-        document.getElementById('lastUpdateProducts').textContent =
-            `Обновлено: ${formatDateTime(new Date())}`;
-
-    } catch (error) {
-        console.error('Ошибка загрузки товаров:', error);
-        showError('Не удалось загрузить данные товаров');
-    }
-}
-
-// Загрузка раздела "Расходы"
-async function loadExpenses() {
-    try {
-        showLoading();
-
-        let url = `${API_BASE_URL}/api/dashboard?period=${currentPeriod}`;
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const metrics = data.metrics;
-        const expenses = metrics.expenses || {};
-
-        // Обновление карточек расходов
-        document.getElementById('expenseCommissionDetails').textContent =
-            formatCurrency(expenses.commission || 0);
-        document.getElementById('expenseLogisticsDetails').textContent =
-            formatCurrency(expenses.logistics || 0);
-        document.getElementById('expenseStorageDetails').textContent =
-            formatCurrency(expenses.storage || 0);
-        document.getElementById('expensePenaltiesDetails').textContent =
-            formatCurrency(expenses.penalties || 0);
-        document.getElementById('totalWBExpenses').textContent =
-            formatCurrency(expenses.total_wb_expenses || 0);
-        document.getElementById('costOfGoods').textContent =
-            formatCurrency(expenses.cost_of_goods || 0);
-
-        // Обновление таблицы расходов по товарам
-        const tbody = document.getElementById('productExpensesTable');
-        tbody.innerHTML = '<tr><td colspan="7" class="loading">Детализация расходов по товарам в разработке</td></tr>';
-
-        // Обновление времени
-        document.getElementById('lastUpdateExpenses').textContent =
-            `Обновлено: ${formatDateTime(new Date())}`;
-
-    } catch (error) {
-        console.error('Ошибка загрузки расходов:', error);
-        showError('Не удалось загрузить данные расходов');
-    }
-}
-
-// ===========================================
-// НОВЫЕ ФУНКЦИИ ПО ТЗ РАЗДЕЛ 15
-// ===========================================
-
-// Обновление ставки налога (раздел 15.1)
-async function updateTaxRate(taxRate) {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/settings`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ tax_rate: taxRate })
+            if (period === 'custom') {
+                customDateRange.style.display = 'flex';
+            } else {
+                customDateRange.style.display = 'none';
+                currentPeriod = period;
+                loadData(period);
+            }
         });
+    });
 
-        if (!response.ok) {
-            throw new Error('Не удалось обновить налоговую ставку');
+    // Применение custom периода
+    applyCustomBtn.addEventListener('click', () => {
+        const dateFrom = document.getElementById('dateFrom').value;
+        const dateTo = document.getElementById('dateTo').value;
+
+        if (!dateFrom || !dateTo) {
+            alert('Выберите обе даты');
+            return;
         }
 
-        console.log(`Налоговая ставка обновлена: ${taxRate * 100}%`);
-
-        // Перезагрузка дашборда с новой ставкой
-        loadDashboard();
-
-    } catch (error) {
-        console.error('Ошибка обновления налоговой ставки:', error);
-        alert('Ошибка обновления налоговой ставки');
-    }
+        currentPeriod = 'custom';
+        loadData('custom', dateFrom, dateTo);
+    });
 }
 
-// Открыть модальное окно редактирования себестоимости (раздел 15.4.2)
-function openEditCOGSModal(nmId, article, currentCostPrice) {
-    document.getElementById('modalNmId').textContent = nmId;
-    document.getElementById('modalArticle').textContent = article;
-    document.getElementById('modalCostPrice').value = currentCostPrice || '';
-    document.getElementById('modalValidFrom').value = ''; // Пусто = сегодня
-
-    document.getElementById('editCOGSModal').style.display = 'flex';
-}
-
-// Закрыть модальное окно
-function closeEditCOGSModal() {
-    document.getElementById('editCOGSModal').style.display = 'none';
-}
-
-// Сохранить себестоимость (раздел 15.4.2)
-async function saveCostPrice() {
-    const nmId = parseInt(document.getElementById('modalNmId').textContent);
-    const costPrice = parseFloat(document.getElementById('modalCostPrice').value);
-    const validFrom = document.getElementById('modalValidFrom').value || null;
-
-    if (isNaN(costPrice) || costPrice < 0) {
-        alert('Введите корректную себестоимость');
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/products/${nmId}/cost-price`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                cost_price: costPrice,
-                valid_from: validFrom
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Не удалось обновить себестоимость');
-        }
-
-        const result = await response.json();
-        console.log('Себестоимость обновлена:', result);
-
-        alert(`Себестоимость обновлена: ${costPrice} ₽`);
-        closeEditCOGSModal();
-
-        // Перезагрузка дашборда
-        loadDashboard();
-
-    } catch (error) {
-        console.error('Ошибка сохранения себестоимости:', error);
-        alert(`Ошибка: ${error.message}`);
-    }
-}
-
-// Функция для кнопки "Редактировать COGS" в таблице
-function editProductCost(nmId, article, currentCostPrice) {
-    openEditCOGSModal(nmId, article, currentCostPrice);
-}
-
-// Рендеринг Expense Breakdown (Раздел 15.6 ТЗ)
-function renderExpenseBreakdown(expenses, profit) {
-    // WB Fees (Commission + Logistics + Storage)
-    const wbFees = (expenses.commission || 0) + (expenses.logistics || 0) + (expenses.storage || 0);
-    const expenseWBFeesEl = document.getElementById('expenseWBFees');
-    if (expenseWBFeesEl) {
-        expenseWBFeesEl.textContent = formatCurrency(wbFees);
-    }
-
-    // Penalties (Штрафы)
-    const expensePenaltiesDetailEl = document.getElementById('expensePenaltiesDetail');
-    if (expensePenaltiesDetailEl) {
-        expensePenaltiesDetailEl.textContent = formatCurrency(expenses.penalties || 0);
-    }
-
-    // Ads (Реклама)
-    const expenseAdsEl = document.getElementById('expenseAds');
-    if (expenseAdsEl) {
-        expenseAdsEl.textContent = formatCurrency(expenses.ads || 0);
-    }
-
-    // COGS (Себестоимость)
-    const expenseCOGSEl = document.getElementById('expenseCOGS');
-    if (expenseCOGSEl) {
-        expenseCOGSEl.textContent = formatCurrency(expenses.cogs || 0);
-    }
-
-    // Manual (Ручные расходы) - пока 0
-    const expenseManualEl = document.getElementById('expenseManual');
-    if (expenseManualEl) {
-        expenseManualEl.textContent = formatCurrency(0);
-    }
-
-    // Other (Прочие)
-    const expenseOtherEl = document.getElementById('expenseOther');
-    if (expenseOtherEl) {
-        expenseOtherEl.textContent = formatCurrency(expenses.other || 0);
-    }
-
-    // Tax (Налог)
-    const expenseTaxEl = document.getElementById('expenseTax');
-    if (expenseTaxEl) {
-        expenseTaxEl.textContent = formatCurrency(profit.tax || 0);
-    }
-}
-
-// Рендеринг Top Blocks (Раздел 15.5 ТЗ)
-function renderTopBlocks(topBlocks) {
-    if (!topBlocks) return;
-
-    // Top Profit
-    renderTopList('topProfit', topBlocks.top_profit);
-
-    // Top Revenue
-    renderTopList('topRevenue', topBlocks.top_revenue);
-
-    // Worst Profit
-    renderTopList('worstProfit', topBlocks.worst_profit);
-
-    // Fastest Change
-    renderTopList('fastestChange', topBlocks.fastest_change);
-}
-
-// Вспомогательная функция для рендеринга списка топ товаров
-function renderTopList(elementId, products) {
-    const container = document.getElementById(elementId);
-    if (!container) return;
-
-    if (!products || products.length === 0) {
-        container.innerHTML = '<div class="loading-small">Нет данных</div>';
-        return;
-    }
-
-    container.innerHTML = products.map((product, index) => {
-        const profit = product.profit_net || 0;
-        const profitColor = profit >= 0 ? '#10b981' : '#ef4444';
-        const revenue = product.revenue_gross !== null ? formatCurrency(product.revenue_gross) : 'N/A';
-
-        return `
-            <div class="top-item">
-                <span class="top-rank">${index + 1}</span>
-                <div class="top-info">
-                    <strong>${escapeHtml(product.article || product.name || '-')}</strong>
-                    <small>${escapeHtml(product.brand || '')} | ${escapeHtml(product.subject || '')}</small>
-                </div>
-                <div class="top-value">
-                    <span style="color: ${profitColor};">${formatCurrency(profit)}</span>
-                    ${elementId === 'topRevenue' ? `<small>${revenue}</small>` : ''}
-                </div>
-            </div>
-        `;
-    }).join('');
-}
+// Инициализация
+document.addEventListener('DOMContentLoaded', () => {
+    setupPeriodFilters();
+    setupSearch();
+    loadData(currentPeriod);
+});
