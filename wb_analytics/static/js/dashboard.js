@@ -83,7 +83,7 @@ function renderProducts(products) {
     const tbody = document.getElementById('productsTable');
 
     if (!products || products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="14" class="loading">Нет данных за выбранный период</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="16" class="loading">Нет данных за выбранный период</td></tr>';
         document.getElementById('productsFooter').style.display = 'none';
         return;
     }
@@ -91,6 +91,7 @@ function renderProducts(products) {
     // Расчет итогов
     let totals = {
         sales: 0,
+        returnQty: 0,
         revenue: 0,
         commission: 0,
         logistics: 0,
@@ -109,9 +110,12 @@ function renderProducts(products) {
         const profitClass = profit >= 0 ? 'profit-positive' : 'profit-negative';
         const roi = product.roi !== null ? formatPercent(product.roi) : '<span style="color: #888;">N/A</span>';
         const sales = product.sales_qty || 0;
+        const returnQty = product.return_qty || 0;
+        const returnPercent = product.return_percent || 0;
 
         // Суммирование
         totals.sales += sales;
+        totals.returnQty += returnQty;
         totals.revenue += product.revenue_gross || 0;
         totals.commission += product.commission || 0;
         totals.logistics += product.logistics || 0;
@@ -128,6 +132,8 @@ function renderProducts(products) {
             <tr>
                 <td class="col-article">${product.article || '-'}</td>
                 <td class="col-number">${formatNumber(sales)}</td>
+                <td class="col-number">${formatNumber(returnQty)}</td>
+                <td class="col-number">${formatPercent(returnPercent)}</td>
                 <td class="col-number">${formatCurrency(product.revenue_gross)}</td>
                 <td class="col-number">${formatCurrency(product.commission)}</td>
                 <td class="col-number">${formatCurrency(product.logistics)}</td>
@@ -147,6 +153,7 @@ function renderProducts(products) {
     // Обновление строки итогов
     const totalProfitClass = totals.profit >= 0 ? 'profit-positive' : 'profit-negative';
     document.getElementById('totalSales').textContent = formatNumber(totals.sales);
+    document.getElementById('totalReturnQty').textContent = formatNumber(totals.returnQty);
     document.getElementById('totalRevenue').textContent = formatCurrency(totals.revenue);
     document.getElementById('totalCommission').textContent = formatCurrency(totals.commission);
     document.getElementById('totalLogistics').textContent = formatCurrency(totals.logistics);
@@ -327,18 +334,20 @@ function updateSortIndicators() {
     const columnMap = {
         'article': 0,
         'sales_qty': 1,
-        'revenue_gross': 2,
-        'commission': 3,
-        'logistics': 4,
-        'storage': 5,
-        'penalties': 6,
-        'ads': 7,
-        'returns': 8,
-        'other': 9,
-        'cogs': 10,
-        'tax': 11,
-        'profit_net': 12,
-        'roi': 13
+        'return_qty': 2,
+        'return_percent': 3,
+        'revenue_gross': 4,
+        'commission': 5,
+        'logistics': 6,
+        'storage': 7,
+        'penalties': 8,
+        'ads': 9,
+        'returns': 10,
+        'other': 11,
+        'cogs': 12,
+        'tax': 13,
+        'profit_net': 14,
+        'roi': 15
     };
 
     const thIndex = columnMap[currentSort.column];
@@ -353,7 +362,7 @@ function updateSortIndicators() {
 // Настройка кликов по заголовкам для сортировки
 function setupTableSorting() {
     const headers = document.querySelectorAll('.products-table thead th');
-    const columnNames = ['article', 'sales_qty', 'revenue_gross', 'commission', 'logistics',
+    const columnNames = ['article', 'sales_qty', 'return_qty', 'return_percent', 'revenue_gross', 'commission', 'logistics',
                         'storage', 'penalties', 'ads', 'returns', 'other', 'cogs', 'tax', 'profit_net', 'roi'];
 
     headers.forEach((header, index) => {

@@ -77,13 +77,15 @@
                         <tr>
                             <th class="col-article">Артикул</th>
                             <th class="col-number">Продано</th>
+                            <th class="col-number">Вернули, шт</th>
+                            <th class="col-number">% возврата</th>
                             <th class="col-number">Выручка</th>
                             <th class="col-number">Комиссия WB</th>
                             <th class="col-number">Логистика</th>
                             <th class="col-number">Хранение</th>
                             <th class="col-number">Штрафы</th>
                             <th class="col-number">Реклама</th>
-                            <th class="col-number">Возвраты</th>
+                            <th class="col-number">Возвраты ₽</th>
                             <th class="col-number">Прочее</th>
                             <th class="col-number">Себестоимость</th>
                             <th class="col-number">Налог</th>
@@ -93,13 +95,15 @@
                     </thead>
                     <tbody id="productsTable">
                         <tr>
-                            <td colspan="14" class="loading">Загрузка...</td>
+                            <td colspan="16" class="loading">Загрузка...</td>
                         </tr>
                     </tbody>
                     <tfoot id="productsFooter" style="display: none;">
                         <tr class="totals-row">
                             <td class="col-article"><strong>ИТОГО:</strong></td>
                             <td class="col-number" id="totalSales">-</td>
+                            <td class="col-number" id="totalReturnQty">-</td>
+                            <td class="col-number">-</td>
                             <td class="col-number" id="totalRevenue">-</td>
                             <td class="col-number" id="totalCommission">-</td>
                             <td class="col-number" id="totalLogistics">-</td>

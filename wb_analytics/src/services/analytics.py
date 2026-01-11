@@ -388,13 +388,14 @@ class AnalyticsService:
 
             # Расчёт метрик аналогично calculate_metrics, но для отдельного товара
             total_sales_qty = 0
+            return_qty = 0  # ИСПРАВЛЕНО: количество возвращённых товаров в штуках
             revenue_gross = 0
             payout_net = 0
             total_commission = 0
             total_logistics = 0
             total_storage = 0
             total_penalties = 0
-            total_returns = 0
+            total_returns = 0  # Сумма возврата (в рублях)
             total_ads = 0
             total_other = 0
             total_cost = 0
@@ -413,6 +414,10 @@ class AnalyticsService:
                 total_penalties += abs(item.get('penalty', 0) or 0)
                 total_logistics += abs(item.get('delivery_rub', 0) or 0)
                 total_returns += abs(item.get('return_amount', 0) or 0)
+
+                # Возвраты (ИСПРАВЛЕНО: считаем ШТУКИ, а не сумму)
+                if doc_type == 'Возврат':
+                    return_qty += abs(qty)  # Берём модуль, т.к. может быть отрицательным
 
                 # Продажи
                 if doc_type == 'Продажа':
@@ -455,6 +460,9 @@ class AnalyticsService:
 
             # Margin%
             margin_percent = (profit_net / revenue_gross * 100) if gross_available and revenue_gross > 0 else None
+
+            # ПРОЦЕНТ ВОЗВРАТА (ИСПРАВЛЕНО: считаем из return_qty)
+            return_percent = (return_qty / total_sales_qty * 100) if total_sales_qty > 0 else 0
 
             # Buyout % (TODO: считать из данных когда будут самовыкупы)
             buyout_percent = 0
@@ -508,6 +516,8 @@ class AnalyticsService:
                 'returns': round(total_returns, 2),
                 'other': round(total_other, 2),
                 'tax': round(tax, 2),
+                'return_qty': return_qty,  # ДОБАВЛЕНО: количество возвратов в штуках
+                'return_percent': round(return_percent, 2),  # ДОБАВЛЕНО: процент возврата
                 'buyout_percent': buyout_percent,
                 'dos_14': dos_14,
                 'stock_qty': stock_qty,

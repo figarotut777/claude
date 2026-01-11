@@ -282,6 +282,7 @@ body {
 
 .products-table {
     width: 100%;
+    min-width: 1800px;  /* ИСПРАВЛЕНО: минимальная ширина для прокрутки */
     border-collapse: collapse;
     font-size: 13px;
 }
