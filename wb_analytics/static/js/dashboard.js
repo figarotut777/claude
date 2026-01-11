@@ -70,7 +70,7 @@ async function loadData(period = 'month', customStart = null, customEnd = null) 
     } catch (error) {
         console.error('Ошибка загрузки данных:', error);
         document.getElementById('productsTable').innerHTML = `
-            <tr><td colspan="12" class="loading" style="color: #ef4444;">
+            <tr><td colspan="13" class="loading" style="color: #ef4444;">
                 Ошибка загрузки данных. Проверьте подключение к серверу.
             </td></tr>
         `;
@@ -82,18 +82,49 @@ function renderProducts(products) {
     const tbody = document.getElementById('productsTable');
 
     if (!products || products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="12" class="loading">Нет данных за выбранный период</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" class="loading">Нет данных за выбранный период</td></tr>';
+        document.getElementById('productsFooter').style.display = 'none';
         return;
     }
+
+    // Расчет итогов
+    let totals = {
+        sales: 0,
+        revenue: 0,
+        commission: 0,
+        logistics: 0,
+        storage: 0,
+        penalties: 0,
+        ads: 0,
+        returns: 0,
+        other: 0,
+        cogs: 0,
+        profit: 0
+    };
 
     tbody.innerHTML = products.map(product => {
         const profit = product.profit_net || 0;
         const profitClass = profit >= 0 ? 'profit-positive' : 'profit-negative';
         const roi = product.roi !== null ? formatPercent(product.roi) : '<span style="color: #888;">N/A</span>';
+        const sales = product.quantity_sold || 0;
+
+        // Суммирование
+        totals.sales += sales;
+        totals.revenue += product.revenue_gross || 0;
+        totals.commission += product.commission || 0;
+        totals.logistics += product.logistics || 0;
+        totals.storage += product.storage || 0;
+        totals.penalties += product.penalties || 0;
+        totals.ads += product.ads || 0;
+        totals.returns += product.returns || 0;
+        totals.other += product.other || 0;
+        totals.cogs += product.cogs || 0;
+        totals.profit += profit;
 
         return `
             <tr>
                 <td class="col-article">${product.article || '-'}</td>
+                <td class="col-number">${formatNumber(sales)}</td>
                 <td class="col-number">${formatCurrency(product.revenue_gross)}</td>
                 <td class="col-number">${formatCurrency(product.commission)}</td>
                 <td class="col-number">${formatCurrency(product.logistics)}</td>
@@ -108,6 +139,25 @@ function renderProducts(products) {
             </tr>
         `;
     }).join('');
+
+    // Обновление строки итогов
+    const totalProfitClass = totals.profit >= 0 ? 'profit-positive' : 'profit-negative';
+    document.getElementById('totalSales').textContent = formatNumber(totals.sales);
+    document.getElementById('totalRevenue').textContent = formatCurrency(totals.revenue);
+    document.getElementById('totalCommission').textContent = formatCurrency(totals.commission);
+    document.getElementById('totalLogistics').textContent = formatCurrency(totals.logistics);
+    document.getElementById('totalStorage').textContent = formatCurrency(totals.storage);
+    document.getElementById('totalPenalties').textContent = formatCurrency(totals.penalties);
+    document.getElementById('totalAds').textContent = formatCurrency(totals.ads);
+    document.getElementById('totalReturns').textContent = formatCurrency(totals.returns);
+    document.getElementById('totalOther').textContent = formatCurrency(totals.other);
+    document.getElementById('totalCogs').textContent = formatCurrency(totals.cogs);
+
+    const totalProfitCell = document.getElementById('totalProfit');
+    totalProfitCell.textContent = formatCurrency(totals.profit);
+    totalProfitCell.className = `col-number profit-col ${totalProfitClass}`;
+
+    document.getElementById('productsFooter').style.display = 'table-footer-group';
 }
 
 // Поиск по таблице

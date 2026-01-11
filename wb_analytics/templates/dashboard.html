@@ -64,6 +64,7 @@
                     <thead>
                         <tr>
                             <th class="col-article">Артикул</th>
+                            <th class="col-number">Продано</th>
                             <th class="col-number">Выручка</th>
                             <th class="col-number">Комиссия WB</th>
                             <th class="col-number">Логистика</th>
@@ -79,20 +80,37 @@
                     </thead>
                     <tbody id="productsTable">
                         <tr>
-                            <td colspan="12" class="loading">Загрузка...</td>
+                            <td colspan="13" class="loading">Загрузка...</td>
                         </tr>
                     </tbody>
+                    <tfoot id="productsFooter" style="display: none;">
+                        <tr class="totals-row">
+                            <td class="col-article"><strong>ИТОГО:</strong></td>
+                            <td class="col-number" id="totalSales">-</td>
+                            <td class="col-number" id="totalRevenue">-</td>
+                            <td class="col-number" id="totalCommission">-</td>
+                            <td class="col-number" id="totalLogistics">-</td>
+                            <td class="col-number" id="totalStorage">-</td>
+                            <td class="col-number" id="totalPenalties">-</td>
+                            <td class="col-number" id="totalAds">-</td>
+                            <td class="col-number" id="totalReturns">-</td>
+                            <td class="col-number" id="totalOther">-</td>
+                            <td class="col-number" id="totalCogs">-</td>
+                            <td class="col-number profit-col" id="totalProfit">-</td>
+                            <td class="col-number">-</td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </div>
 
         <!-- Top & Bottom SKU -->
         <div class="top-bottom-section">
-            <h2>🏆 Top & Bottom SKU</h2>
+            <h2>🏆 Лучшие и худшие товары</h2>
             <div class="top-blocks-grid">
                 <!-- Top Profit -->
                 <div class="top-block">
-                    <h3>💎 Top Profit (10)</h3>
+                    <h3>💎 Топ по прибыли (10)</h3>
                     <div class="top-list" id="topProfit">
                         <div class="loading-small">Загрузка...</div>
                     </div>
@@ -100,7 +118,7 @@
 
                 <!-- Top Revenue -->
                 <div class="top-block">
-                    <h3>💰 Top Revenue (10)</h3>
+                    <h3>💰 Топ по выручке (10)</h3>
                     <div class="top-list" id="topRevenue">
                         <div class="loading-small">Загрузка...</div>
                     </div>
@@ -108,7 +126,7 @@
 
                 <!-- Worst Profit -->
                 <div class="top-block">
-                    <h3>⚠️ Worst Profit (10)</h3>
+                    <h3>⚠️ Худшие по прибыли (10)</h3>
                     <div class="top-list" id="worstProfit">
                         <div class="loading-small">Загрузка...</div>
                     </div>
@@ -116,7 +134,7 @@
 
                 <!-- Fastest Change -->
                 <div class="top-block">
-                    <h3>🚀 Fastest Change (10)</h3>
+                    <h3>🚀 Самый быстрый рост (10)</h3>
                     <div class="top-list" id="fastestChange">
                         <div class="loading-small">Загрузка...</div>
                     </div>

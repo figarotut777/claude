@@ -505,3 +505,25 @@ body {
 .btn-save:active {
     transform: scale(0.98);
 }
+
+/* Строка итогов */
+.totals-row {
+    background: #252525 !important;
+    border-top: 2px solid #3b82f6;
+    font-weight: 600;
+}
+
+.totals-row td {
+    padding: 14px 12px !important;
+    font-size: 14px;
+}
+
+.totals-row .profit-positive {
+    color: #10b981;
+    font-weight: 700;
+}
+
+.totals-row .profit-negative {
+    color: #ef4444;
+    font-weight: 700;
+}

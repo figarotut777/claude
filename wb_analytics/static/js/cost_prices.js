@@ -32,7 +32,7 @@ async function loadProducts() {
     } catch (error) {
         console.error('Ошибка загрузки данных:', error);
         document.getElementById('costPricesTable').innerHTML = `
-            <tr><td colspan="5" class="loading" style="color: #ef4444;">
+            <tr><td colspan="4" class="loading" style="color: #ef4444;">
                 Ошибка загрузки данных. Проверьте подключение к серверу.
             </td></tr>
         `;
@@ -44,7 +44,7 @@ function renderProducts(products) {
     const tbody = document.getElementById('costPricesTable');
 
     if (!products || products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="loading">Нет товаров</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="loading">Нет товаров</td></tr>';
         return;
     }
 
@@ -54,7 +54,6 @@ function renderProducts(products) {
         return `
             <tr data-nm-id="${product.nm_id}">
                 <td class="col-article">${product.article || '-'}</td>
-                <td>${product.name || 'Без названия'}</td>
                 <td class="col-number">${formatCurrency(currentCost)}</td>
                 <td class="col-number">
                     <input type="number"
