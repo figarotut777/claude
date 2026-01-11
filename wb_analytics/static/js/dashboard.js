@@ -106,7 +106,7 @@ function renderProducts(products) {
         const profit = product.profit_net || 0;
         const profitClass = profit >= 0 ? 'profit-positive' : 'profit-negative';
         const roi = product.roi !== null ? formatPercent(product.roi) : '<span style="color: #888;">N/A</span>';
-        const sales = product.quantity_sold || 0;
+        const sales = product.sales_qty || 0;
 
         // Суммирование
         totals.sales += sales;
