@@ -43,3 +43,9 @@ Desktop.ini
 
 # Dependencies
 _deps/
+
+# Data and databases
+data/
+*.db
+*.sqlite
+*.sqlite3
