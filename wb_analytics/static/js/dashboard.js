@@ -2,6 +2,7 @@
 
 let currentPeriod = 'month';
 let allProducts = [];
+let currentSort = { column: 'profit_net', direction: 'desc' };
 
 // Форматирование чисел
 function formatNumber(num) {
@@ -281,9 +282,137 @@ function renderTopList(elementId, products, valueType) {
     }).join('');
 }
 
+// Сортировка товаров
+function sortProducts(column) {
+    // Меняем направление сортировки если кликнули на ту же колонку
+    if (currentSort.column === column) {
+        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort.column = column;
+        currentSort.direction = 'desc';
+    }
+
+    // Сортируем
+    allProducts.sort((a, b) => {
+        let aVal = a[column];
+        let bVal = b[column];
+
+        // Обработка null/undefined
+        if (aVal === null || aVal === undefined) aVal = currentSort.direction === 'asc' ? Infinity : -Infinity;
+        if (bVal === null || bVal === undefined) bVal = currentSort.direction === 'asc' ? Infinity : -Infinity;
+
+        // Для строк (артикул)
+        if (typeof aVal === 'string') {
+            return currentSort.direction === 'asc'
+                ? aVal.localeCompare(bVal)
+                : bVal.localeCompare(aVal);
+        }
+
+        // Для чисел
+        return currentSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+
+    renderProducts(allProducts);
+    updateSortIndicators();
+}
+
+// Обновление индикаторов сортировки в заголовках
+function updateSortIndicators() {
+    // Удаляем все старые индикаторы
+    document.querySelectorAll('.products-table th').forEach(th => {
+        th.classList.remove('sorted-asc', 'sorted-desc');
+    });
+
+    // Добавляем новый индикатор
+    const columnMap = {
+        'article': 0,
+        'sales_qty': 1,
+        'revenue_gross': 2,
+        'commission': 3,
+        'logistics': 4,
+        'storage': 5,
+        'penalties': 6,
+        'ads': 7,
+        'returns': 8,
+        'other': 9,
+        'cogs': 10,
+        'tax': 11,
+        'profit_net': 12,
+        'roi': 13
+    };
+
+    const thIndex = columnMap[currentSort.column];
+    if (thIndex !== undefined) {
+        const th = document.querySelectorAll('.products-table thead th')[thIndex];
+        if (th) {
+            th.classList.add(currentSort.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
+        }
+    }
+}
+
+// Настройка кликов по заголовкам для сортировки
+function setupTableSorting() {
+    const headers = document.querySelectorAll('.products-table thead th');
+    const columnNames = ['article', 'sales_qty', 'revenue_gross', 'commission', 'logistics',
+                        'storage', 'penalties', 'ads', 'returns', 'other', 'cogs', 'tax', 'profit_net', 'roi'];
+
+    headers.forEach((header, index) => {
+        if (columnNames[index]) {
+            header.style.cursor = 'pointer';
+            header.title = 'Кликните для сортировки';
+            header.addEventListener('click', () => {
+                sortProducts(columnNames[index]);
+            });
+        }
+    });
+}
+
+// Обработка изменения налога
+async function setupTaxSelector() {
+    const taxSelect = document.getElementById('taxRate');
+
+    // Загрузка сохранённого налога из settings
+    try {
+        const response = await fetch('/api/settings');
+        if (response.ok) {
+            const settings = await response.json();
+            if (settings.tax_rate !== undefined) {
+                taxSelect.value = settings.tax_rate;
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки настроек налога:', error);
+    }
+
+    // Обработка изменения налога
+    taxSelect.addEventListener('change', async (e) => {
+        const taxRate = parseFloat(e.target.value);
+
+        // Сохранение в БД
+        try {
+            const response = await fetch('/api/settings', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ tax_rate: taxRate })
+            });
+
+            if (response.ok) {
+                // Перезагрузка данных с новым налогом
+                loadData(currentPeriod);
+            }
+        } catch (error) {
+            console.error('Ошибка сохранения налога:', error);
+        }
+    });
+}
+
 // Инициализация
 document.addEventListener('DOMContentLoaded', () => {
     setupPeriodFilters();
     setupSearch();
+    setupTaxSelector();
+    setupTableSorting();
     loadData(currentPeriod);
 });

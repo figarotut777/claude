@@ -49,14 +49,13 @@ class AnalyticsService:
             end_date = now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
         elif period == 'week':
-            # Текущая календарная неделя (с понедельника до сегодня)
-            weekday = now.weekday()  # 0 = понедельник, 6 = воскресенье
-            start_date = (now - timedelta(days=weekday)).replace(hour=0, minute=0, second=0, microsecond=0)
+            # Последние 7 дней (как на WB): сегодня минус 7 дней
+            start_date = (now - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
             end_date = now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
         elif period == 'month':
-            # Текущий календарный месяц (с 1 числа до сегодня)
-            start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            # Последние 30 дней (как на WB): сегодня минус 30 дней
+            start_date = (now - timedelta(days=30)).replace(hour=0, minute=0, second=0, microsecond=0)
             end_date = now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
         elif period == 'all':

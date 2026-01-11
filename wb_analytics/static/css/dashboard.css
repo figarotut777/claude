@@ -301,6 +301,33 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border-bottom: 1px solid #2d2d2d;
+    user-select: none;
+    position: relative;
+}
+
+.products-table th:hover {
+    color: #3b82f6;
+}
+
+.products-table th.sorted-asc::after,
+.products-table th.sorted-desc::after {
+    content: '';
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+}
+
+.products-table th.sorted-asc::after {
+    border-bottom: 6px solid #3b82f6;
+}
+
+.products-table th.sorted-desc::after {
+    border-top: 6px solid #3b82f6;
 }
 
 .products-table th.col-number {
