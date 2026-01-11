@@ -354,7 +354,9 @@ class AnalyticsService:
         Получение сводки по всем товарам с расчётом прибыли и статусов (по ТЗ раздел 15.4)
 
         Args:
-            period: Период для расчёта метрик (today, week, month)
+            period: Период для расчёта метрик (today, week, month, custom)
+            custom_start: Начало custom периода (ISO формат)
+            custom_end: Конец custom периода (ISO формат)
 
         Returns:
             Список товаров с метриками: Profit Net, Revenue Gross, Margin%, ROI, статусы
@@ -572,69 +574,81 @@ class AnalyticsService:
 
         return products_list[:limit]
 
-    def get_top_profit(self, period: str = 'month', limit: int = 10) -> List[Dict]:
+    def get_top_profit(self, period: str = 'month', custom_start: str = None,
+                      custom_end: str = None, limit: int = 10) -> List[Dict]:
         """
         Топ товаров по прибыли (раздел 15.5 ТЗ)
 
         Args:
             period: Период для расчёта
+            custom_start: Начало custom периода
+            custom_end: Конец custom периода
             limit: Количество товаров
 
         Returns:
             Список топ товаров по Profit Net
         """
-        summary = self.get_products_summary(period=period)
+        summary = self.get_products_summary(period=period, custom_start=custom_start, custom_end=custom_end)
         summary.sort(key=lambda x: x['profit_net'], reverse=True)
         return summary[:limit]
 
-    def get_top_revenue(self, period: str = 'month', limit: int = 10) -> List[Dict]:
+    def get_top_revenue(self, period: str = 'month', custom_start: str = None,
+                       custom_end: str = None, limit: int = 10) -> List[Dict]:
         """
         Топ товаров по выручке (раздел 15.5 ТЗ)
 
         Args:
             period: Период для расчёта
+            custom_start: Начало custom периода
+            custom_end: Конец custom периода
             limit: Количество товаров
 
         Returns:
             Список топ товаров по Revenue Gross
         """
-        summary = self.get_products_summary(period=period)
+        summary = self.get_products_summary(period=period, custom_start=custom_start, custom_end=custom_end)
         # Фильтруем товары с доступной Revenue Gross
         with_revenue = [p for p in summary if p['revenue_gross'] is not None and p['revenue_gross'] > 0]
         with_revenue.sort(key=lambda x: x['revenue_gross'], reverse=True)
         return with_revenue[:limit]
 
-    def get_worst_profit(self, period: str = 'month', limit: int = 10) -> List[Dict]:
+    def get_worst_profit(self, period: str = 'month', custom_start: str = None,
+                        custom_end: str = None, limit: int = 10) -> List[Dict]:
         """
         Худшие товары по прибыли (раздел 15.5 ТЗ)
 
         Args:
             period: Период для расчёта
+            custom_start: Начало custom периода
+            custom_end: Конец custom периода
             limit: Количество товаров
 
         Returns:
             Список худших товаров по Profit Net
         """
-        summary = self.get_products_summary(period=period)
+        summary = self.get_products_summary(period=period, custom_start=custom_start, custom_end=custom_end)
         summary.sort(key=lambda x: x['profit_net'])  # По возрастанию (худшие первые)
         return summary[:limit]
 
-    def get_fastest_change(self, period: str = 'month', limit: int = 10) -> List[Dict]:
+    def get_fastest_change(self, period: str = 'month', custom_start: str = None,
+                          custom_end: str = None, limit: int = 10) -> List[Dict]:
         """
         Товары с самым быстрым изменением прибыли (раздел 15.5 ТЗ)
 
         Args:
             period: Период для расчёта
+            custom_start: Начало custom периода
+            custom_end: Конец custom периода
             limit: Количество товаров
 
         Returns:
             Список товаров с наибольшим |Δ Profit Net %|
         """
         # Получаем данные за текущий период
-        current_summary = self.get_products_summary(period=period)
+        current_summary = self.get_products_summary(period=period, custom_start=custom_start, custom_end=custom_end)
 
         # Получаем данные за предыдущий период той же длительности
-        start_date, end_date = self.get_period_dates(period)
+        start_date, end_date = self.get_period_dates(period, custom_start, custom_end)
         start_dt = datetime.fromisoformat(start_date)
         end_dt = datetime.fromisoformat(end_date)
         period_duration = end_dt - start_dt
@@ -699,15 +713,15 @@ class AnalyticsService:
         # Топ товаров (старый формат для совместимости)
         top_products = self.get_top_products(period=period, limit=5)
 
-        # Сводка по товарам (с новыми метриками)
-        products_summary = self.get_products_summary(period=period)
+        # Сводка по товарам (с новыми метриками) - ИСПРАВЛЕНО: передаём custom даты
+        products_summary = self.get_products_summary(period=period, custom_start=custom_start, custom_end=custom_end)
 
-        # TOP BLOCKS (раздел 15.5 ТЗ)
+        # TOP BLOCKS (раздел 15.5 ТЗ) - ИСПРАВЛЕНО: передаём custom даты
         top_blocks = {
-            'top_profit': self.get_top_profit(period=period, limit=10),
-            'top_revenue': self.get_top_revenue(period=period, limit=10),
-            'worst_profit': self.get_worst_profit(period=period, limit=10),
-            'fastest_change': self.get_fastest_change(period=period, limit=10)
+            'top_profit': self.get_top_profit(period=period, custom_start=custom_start, custom_end=custom_end, limit=10),
+            'top_revenue': self.get_top_revenue(period=period, custom_start=custom_start, custom_end=custom_end, limit=10),
+            'worst_profit': self.get_worst_profit(period=period, custom_start=custom_start, custom_end=custom_end, limit=10),
+            'fastest_change': self.get_fastest_change(period=period, custom_start=custom_start, custom_end=custom_end, limit=10)
         }
 
         # Текущие остатки
@@ -720,9 +734,9 @@ class AnalyticsService:
             for stock in stocks
         )
 
-        # Информация о последнем обновлении
+        # Информация о последнем обновлении (ИСПРАВЛЕНО: ключ должен быть last_incremental_sync)
         sync_status = {
-            'last_update': self.db.get_metadata('last_incremental_sync'),
+            'last_incremental_sync': self.db.get_metadata('last_incremental_sync'),
             'total_products': len(self.db.get_products())
         }
 
