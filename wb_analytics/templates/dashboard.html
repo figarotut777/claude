@@ -30,7 +30,18 @@
     <main class="content">
         <header class="header">
             <h1>Внутренняя аналитика</h1>
-            <span class="last-sync" id="lastSync">-</span>
+            <div class="header-right">
+                <div class="tax-selector">
+                    <label for="taxRate">Налог:</label>
+                    <select id="taxRate" class="tax-select">
+                        <option value="0">Без налога (0%)</option>
+                        <option value="0.06" selected>УСН Доходы (6%)</option>
+                        <option value="0.15">УСН Доходы-Расходы (15%)</option>
+                        <option value="0.20">ОСН (20%)</option>
+                    </select>
+                </div>
+                <span class="last-sync" id="lastSync">-</span>
+            </div>
         </header>
 
         <!-- Фильтры периодов -->
@@ -74,13 +85,14 @@
                             <th class="col-number">Возвраты</th>
                             <th class="col-number">Прочее</th>
                             <th class="col-number">Себестоимость</th>
+                            <th class="col-number">Налог</th>
                             <th class="col-number profit-col">Прибыль</th>
                             <th class="col-number">ROI %</th>
                         </tr>
                     </thead>
                     <tbody id="productsTable">
                         <tr>
-                            <td colspan="13" class="loading">Загрузка...</td>
+                            <td colspan="14" class="loading">Загрузка...</td>
                         </tr>
                     </tbody>
                     <tfoot id="productsFooter" style="display: none;">
@@ -96,6 +108,7 @@
                             <td class="col-number" id="totalReturns">-</td>
                             <td class="col-number" id="totalOther">-</td>
                             <td class="col-number" id="totalCogs">-</td>
+                            <td class="col-number" id="totalTax">-</td>
                             <td class="col-number profit-col" id="totalProfit">-</td>
                             <td class="col-number">-</td>
                         </tr>

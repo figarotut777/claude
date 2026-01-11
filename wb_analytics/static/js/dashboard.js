@@ -39,7 +39,7 @@ async function loadData(period = 'month', customStart = null, customEnd = null) 
         let url = `/api/dashboard?period=${period}`;
 
         if (period === 'custom' && customStart && customEnd) {
-            url += `&custom_start=${customStart}&custom_end=${customEnd}`;
+            url += `&start=${customStart}&end=${customEnd}`;
         }
 
         const response = await fetch(url);
@@ -70,7 +70,7 @@ async function loadData(period = 'month', customStart = null, customEnd = null) 
     } catch (error) {
         console.error('Ошибка загрузки данных:', error);
         document.getElementById('productsTable').innerHTML = `
-            <tr><td colspan="13" class="loading" style="color: #ef4444;">
+            <tr><td colspan="14" class="loading" style="color: #ef4444;">
                 Ошибка загрузки данных. Проверьте подключение к серверу.
             </td></tr>
         `;
@@ -82,7 +82,7 @@ function renderProducts(products) {
     const tbody = document.getElementById('productsTable');
 
     if (!products || products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="13" class="loading">Нет данных за выбранный период</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="14" class="loading">Нет данных за выбранный период</td></tr>';
         document.getElementById('productsFooter').style.display = 'none';
         return;
     }
@@ -99,6 +99,7 @@ function renderProducts(products) {
         returns: 0,
         other: 0,
         cogs: 0,
+        tax: 0,
         profit: 0
     };
 
@@ -119,6 +120,7 @@ function renderProducts(products) {
         totals.returns += product.returns || 0;
         totals.other += product.other || 0;
         totals.cogs += product.cogs || 0;
+        totals.tax += product.tax || 0;
         totals.profit += profit;
 
         return `
@@ -134,6 +136,7 @@ function renderProducts(products) {
                 <td class="col-number">${formatCurrency(product.returns)}</td>
                 <td class="col-number">${formatCurrency(product.other)}</td>
                 <td class="col-number">${formatCurrency(product.cogs)}</td>
+                <td class="col-number">${formatCurrency(product.tax)}</td>
                 <td class="col-number ${profitClass}">${formatCurrency(profit)}</td>
                 <td class="col-number">${roi}</td>
             </tr>
@@ -152,6 +155,7 @@ function renderProducts(products) {
     document.getElementById('totalReturns').textContent = formatCurrency(totals.returns);
     document.getElementById('totalOther').textContent = formatCurrency(totals.other);
     document.getElementById('totalCogs').textContent = formatCurrency(totals.cogs);
+    document.getElementById('totalTax').textContent = formatCurrency(totals.tax);
 
     const totalProfitCell = document.getElementById('totalProfit');
     totalProfitCell.textContent = formatCurrency(totals.profit);

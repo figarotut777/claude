@@ -44,17 +44,20 @@ class AnalyticsService:
         now = datetime.now()
 
         if period == 'today':
-            # Для "сегодня" берём начало дня и текущий момент
+            # Для "сегодня" берём начало дня и конец дня
             start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
             end_date = now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
         elif period == 'week':
-            start_date = now - timedelta(days=7)
-            end_date = now
+            # Текущая календарная неделя (с понедельника до сегодня)
+            weekday = now.weekday()  # 0 = понедельник, 6 = воскресенье
+            start_date = (now - timedelta(days=weekday)).replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
         elif period == 'month':
-            start_date = now - timedelta(days=30)
-            end_date = now
+            # Текущий календарный месяц (с 1 числа до сегодня)
+            start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
         elif period == 'all':
             # За всё время - с момента начала данных WB API (29.01.2024)
@@ -503,6 +506,7 @@ class AnalyticsService:
                 'ads': round(total_ads, 2),
                 'returns': round(total_returns, 2),
                 'other': round(total_other, 2),
+                'tax': round(tax, 2),
                 'buyout_percent': buyout_percent,
                 'dos_14': dos_14,
                 'stock_qty': stock_qty,
